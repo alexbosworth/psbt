@@ -1,0 +1,8 @@
+{
+  "nestedScriptPubElementsLen": 3,
+  "p2pkhHashByteLength": 20,
+  "p2shHashByteLength": 20,
+  "p2wshHashByteLength": 32,
+  "witnessScriptPubElementsLen": 2
+}
+

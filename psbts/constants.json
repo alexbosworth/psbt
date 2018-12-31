@@ -1,0 +1,13 @@
+{
+  "decBase": 10,
+  "defaultTransactionVersionNumber": 2,
+  "endianness": "le",
+  "hexBase": 16,
+  "keyCodeByteLength": 1,
+  "opNumberOffset": 80,
+  "sigHashByteLength": 4,
+  "stackIndexByteLength": 4,
+  "terminatorByte": "00",
+  "tokensByteLength": 8
+}
+

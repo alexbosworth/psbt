@@ -1,0 +1,24 @@
+{
+  "author": "Alex Bosworth",
+  "dependencies": {
+    "bip66": "1.1.5",
+    "bitcoin-ops": "1.4.1",
+    "bitcoinjs-lib": "4.0.2",
+    "bn.js": "4.11.8",
+    "pushdata-bitcoin": "1.0.1",
+    "varuint-bitcoin": "1.1.0"
+  },
+  "description": "Methods for working with BIP 174 PSBTs",
+  "devDependencies": {
+    "tap": "12.1.1"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "license": "MIT",
+  "name": "psbt",
+  "scripts": {
+    "test": "tap test/psbts/*.js"
+  },
+  "version": "1.0.0"
+}

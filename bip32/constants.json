@@ -1,0 +1,12 @@
+{
+  "bip32KeyByteLength": 4,
+  "bip32KeyLimit": 2147483648,
+  "bip32PathSeparator": "/",
+  "decBase": 10,
+  "endianness": "le",
+  "fingerprintByteLength": 4,
+  "hardenedMarker": "'",
+  "maxWitnessVersion": 16,
+  "minWitnessVersion": 0
+}
+
