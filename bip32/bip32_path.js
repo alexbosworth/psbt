@@ -5,9 +5,11 @@ const {bip32KeyLimit} = require('./constants');
 const {bip32PathSeparator} = require('./constants');
 const {decBase} = require('./constants');
 const {endianness} = require('./constants');
+const {fingerprintByteLength} = require('./constants');
 const {hardenedMarker} = require('./constants');
 
 const {concat} = Buffer;
+const fingerprintLen = [fingerprintByteLength].length;
 
 /** Encode a BIP32 path
 
@@ -20,16 +22,16 @@ const {concat} = Buffer;
 */
 module.exports = ({path}) => {
   const byteLength = bip32KeyByteLength;
-  const [, child, childHardened, childIndex] = path.split(bip32PathSeparator);
 
-  return concat([child, childHardened, childIndex].map(n => {
+  return concat(path.split(bip32PathSeparator).slice(fingerprintLen).map(n => {
     const len = hardenedMarker.length;
 
-    const path = n.slice(-len) === hardenedMarker ? n.slice(0, -len) : n;
+    const isHard = n.slice(-len) === hardenedMarker;
 
-    const value = parseInt(path, decBase) + bip32KeyLimit;
+    const path = isHard ? n.slice(0, -len) : n;
+
+    const value = parseInt(path, decBase) + (isHard ? bip32KeyLimit : 0);
 
     return new BN(value, decBase).toArrayLike(Buffer, endianness, byteLength);
   }));
 };
-

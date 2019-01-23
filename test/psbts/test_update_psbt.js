@@ -16,7 +16,7 @@ const tests = {
         },
         {
           fingerprint: 'd90c6a4f',
-          path: `m/0'/0'/1`,
+          path: `m/0'/0'/1'`,
           public_key: '02dab61ff49a14db6a7d02b0cd1fbb78fc4b18312b5b4e54dae4dba2fbfef536d7',
         },
         {

@@ -3,6 +3,8 @@ const {bip32KeyLimit} = require('./constants');
 const {ECPair} = require('./../tokens');
 const {fingerprintByteLength} = require('./constants');
 
+const {floor} = Math;
+
 /** Decode BIP32 Derivation Data
 
   {
@@ -30,20 +32,33 @@ module.exports = ({derivation, key}) => {
     throw new Error('InvalidBip32Key');
   }
 
-  const child = derivation.readUInt32LE(fingerprintByteLength) - bip32KeyLimit;
+  const path = derivation
+    .reduce((sum, byte, i) => {
+      const start = floor(i / bip32KeyByteLength);
 
-  const hardChildOffset = fingerprintByteLength + bip32KeyByteLength;
+      sum[start] = sum[start] || [];
 
-  const hardChild = derivation.readUInt32LE(hardChildOffset) - bip32KeyLimit;
+      sum[start].push(byte);
 
-  const childIndexOffset = hardChildOffset + bip32KeyByteLength;
+      return sum;
+    }, [])
+    .map(n => Buffer.from(n))
+    .slice([fingerprintByteLength].length)
+    .reduce((sum, n) => {
+      const i = n.readUInt32LE();
 
-  const childIndex = derivation.readUInt32LE(childIndexOffset) - bip32KeyLimit;
+      const isHard = (i & bip32KeyLimit) !== 0;
+
+      const adjustedIndex = isHard ? i - bip32KeyLimit : i;
+      const marker = isHard ? `'` : '';
+
+      return `${sum}/${adjustedIndex}${marker}`;
+    },
+    'm');
 
   return {
+    path,
     fingerprint: derivation.slice(0, fingerprintByteLength).toString('hex'),
-    path: `m/${child}'/${hardChild}'/${childIndex}'`,
     public_key: childKey.publicKey.toString('hex'),
   };
 };
-
