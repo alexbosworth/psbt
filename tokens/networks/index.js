@@ -23,4 +23,3 @@ module.exports = {
   ltcregtest,
   ltctestnet,
 };
-

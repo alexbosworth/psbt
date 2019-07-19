@@ -59,4 +59,3 @@ module.exports = ({pairs}) => {
 
   return {psbt: psbt.toString('hex')};
 };
-

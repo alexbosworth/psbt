@@ -64,4 +64,3 @@ module.exports = ({outputs, timelock, utxos, version}) => {
 
   return encodePsbt({pairs});
 };
-

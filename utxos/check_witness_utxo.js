@@ -96,4 +96,3 @@ module.exports = ({hash, redeem, script}) => {
 
   return;
 };
-

@@ -53,4 +53,3 @@ Object.keys(networks).forEach(network => {
 });
 
 module.exports = lib;
-

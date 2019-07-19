@@ -504,4 +504,3 @@ module.exports = ({psbt}) => {
 
   return decoded;
 };
-

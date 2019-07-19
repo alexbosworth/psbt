@@ -35,4 +35,3 @@ module.exports = ({signature}) => {
     signature: Buffer.concat([r, s], sigByteLength),
   };
 };
-

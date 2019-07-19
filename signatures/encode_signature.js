@@ -23,4 +23,3 @@ module.exports = ({flag, signature}) => {
 
   return Buffer.concat([encode(r, s), hashType]);
 };
-

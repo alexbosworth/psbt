@@ -29,4 +29,3 @@ module.exports = ({point}) => {
     return x;
   }
 };
-

@@ -529,4 +529,3 @@ module.exports = args => {
 
   return encodePsbt({pairs});
 };
-

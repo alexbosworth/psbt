@@ -61,4 +61,3 @@ module.exports = ({hash, script, utxo}) => {
 
   return;
 };
-

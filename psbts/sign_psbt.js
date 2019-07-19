@@ -190,4 +190,3 @@ module.exports = args => {
 
   return updatePsbt({signatures, psbt: args.psbt, signatures});
 };
-

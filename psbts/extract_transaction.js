@@ -64,4 +64,3 @@ module.exports = ({psbt}) => {
 
   return {transaction: tx.toHex()};
 };
-

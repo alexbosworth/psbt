@@ -3,14 +3,14 @@
   "dependencies": {
     "bip66": "1.1.5",
     "bitcoin-ops": "1.4.1",
-    "bitcoinjs-lib": "4.0.5",
-    "bn.js": "4.11.8",
+    "bitcoinjs-lib": "5.1.1",
+    "bn.js": "5.0.0",
     "pushdata-bitcoin": "1.0.1",
     "varuint-bitcoin": "1.1.0"
   },
   "description": "Methods for working with BIP 174 PSBTs",
   "devDependencies": {
-    "tap": "12.6.1"
+    "tap": "14.4.2"
   },
   "directories": {
     "test": "test"
@@ -24,5 +24,5 @@
   "scripts": {
     "test": "tap test/psbts/*.js"
   },
-  "version": "1.0.3"
+  "version": "1.0.4"
 }

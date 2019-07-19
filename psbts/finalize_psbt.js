@@ -16,4 +16,3 @@ const updatePsbt = require('./update_psbt');
 module.exports = ({psbt}) => {
   return updatePsbt({is_final: true, psbt});
 };
-

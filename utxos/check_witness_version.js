@@ -22,4 +22,3 @@ module.exports = ({version}) => {
 
   return;
 };
-

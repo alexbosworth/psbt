@@ -58,4 +58,3 @@ module.exports = ({data, encode}) => {
     throw new Error('UnexpectedLengthForDataPush');
   }
 };
-
