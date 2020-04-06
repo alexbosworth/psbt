@@ -197,7 +197,7 @@ example, a preimage cannot be represented in a standard PSBT.
 
     @returns
     {
-      psbt: <Finalized PSBT String>
+      psbt: <Signed PSBT String>
     }
 
 ### updatePsbt
