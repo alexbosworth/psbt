@@ -1,6 +1,8 @@
 const BN = require('bn.js');
+const {encode} = require('varuint-bitcoin');
 const {OP_0} = require('bitcoin-ops');
-const varuint = require('varuint-bitcoin');
+const {OP_EQUAL} = require('bitcoin-ops');
+const {OP_HASH160} = require('bitcoin-ops');
 
 const {bip32Path} = require('./../bip32');
 const {crypto} = require('./../tokens');
@@ -21,7 +23,12 @@ const types = require('./types');
 
 const {decompile} = script;
 const {hash160} = crypto;
+const {isBuffer} = Buffer;
+const isNestedP2wpkhReedeemScript = n => !!n && n.length === 44;
+const redeemHashLength = 20;
 const {sha256} = crypto;
+const transactionId = tx => Transaction.fromHex(tx).getId();
+const txOuts = tx => Transaction.fromHex(tx).outs;
 
 /** Update a PSBT
 
@@ -195,6 +202,11 @@ module.exports = args => {
 
     // Find the non-witness output
     const out = spendsTx.outs
+      .filter(({script}) => {
+        const [, hash] = decompile(script);
+
+        return Buffer.isBuffer(hash);
+      })
       .map(({script}) => {
         const [, hash] = decompile(script);
 
@@ -212,13 +224,14 @@ module.exports = args => {
 
     // Find the output in the spending transaction that matches the input
     const outW = spendsTx.outs
+      .filter(({script}) => {
+        const [, scriptHash] = decompile(script);
+
+        return Buffer.isBuffer(scriptHash);
+      })
       .map(({script, value}) => {
         // Get the hash being spent, either a P2SH or a P2WSH
         const [, scriptHash] = decompile(script);
-
-        if (!scriptHash) {
-          return;
-        }
 
         const hash = scriptHash.toString('hex');
 
@@ -230,21 +243,85 @@ module.exports = args => {
       })
       .find(({hash}) => !!witnesses[hash]);
 
+    const spending = args.transactions.find(transaction => {
+      return transactionId(transaction) === input.hash.toString('hex');
+    })
+
+    const spendOut = !spending ? null : txOuts(spending)[input.index];
+
     if (!!outW && !!outW.witness) {
       utxo.witness_script = outW.witness.toString('hex');
     }
 
-    if (!!spendsTx.hasWitnesses()) {
+    if (!!spendOut) {
+      const [, spendScript] = decompile(spendOut.script);
+
+      // Look for a redeem script that matches this spend out script
+      const redeemScript = (args.redeem_scripts || []).find(script => {
+        // Exit early when there is no spend script
+        if (!Buffer.isBuffer(spendScript)) {
+          return false;
+        }
+
+        const [push] = decompile(Buffer.from(script, 'hex'));
+
+        if (!Buffer.isBuffer(push)) {
+          return false;
+        }
+
+        return spendScript.equals(hash160(push));
+      });
+
+      if (!!redeemScript) {
+        const [redeem] = decompile(Buffer.from(redeemScript, 'hex'));
+
+        utxo.redeem_script = redeem.toString('hex');
+
+        const [push] = decompile(Buffer.from(redeemScript, 'hex'));
+
+        if (!!push) {
+          const [, hash] = decompile(push);
+
+          if (!!hash && !!witnesses[hash.toString('hex')]) {
+            const {witness} = witnesses[hash.toString('hex')];
+
+            utxo.witness_script = witness.toString('hex');
+          }
+        }
+      }
+    }
+
+    const nestedP2wpkh = (() => {
+      try {
+        const [opHash160, hash, opEqual] = decompile(spendOut.script);
+
+        const isP2shPush = isBuffer(hash) && hash.length === redeemHashLength;
+
+        if (opHash160 !== OP_HASH160 || opEqual !== OP_EQUAL && !isP2shPush) {
+          return false;
+        }
+
+        return args.redeem_scripts.find(redeem => {
+          const [pushedScript] = decompile(Buffer.from(redeem, 'hex'));
+
+          return hash160(pushedScript).equals(hash);
+        });
+      } catch (err) {
+        return false;
+      }
+    })();
+
+    if (!!spendsTx.hasWitnesses() || !!nestedP2wpkh) {
       utxo.witness_utxo = {
-        script_pub: outW.script.toString('hex'),
-        tokens: outW.value,
+        script_pub: spendOut.script.toString('hex'),
+        tokens: spendOut.value,
       };
     } else {
       utxo.non_witness_utxo = spends.toString('hex');
     }
 
     const legacyOutputBip32 = (out || {}).derivations || [];
-    const redeemScript = (out || outW).redeem;
+    const redeemScript = (out || outW || {}).redeem;
     const witnessOutputBip32 = (outW || {}).derivations || [];
 
     const outBip32 = legacyOutputBip32.concat(witnessOutputBip32);
@@ -279,7 +356,7 @@ module.exports = args => {
 
       pairs.push({
         type: Buffer.from(types.input.witness_utxo, 'hex'),
-        value: Buffer.concat([tokens, varuint.encode(script.length), script]),
+        value: Buffer.concat([tokens, encode(script.length), script]),
       });
     }
 
@@ -345,13 +422,9 @@ module.exports = args => {
       throw new Error('ExpectedSignaturesForFinalizedTransaction');
     }
 
-    if (!!args.is_final && !n.redeem_script && !n.witness_script) {
-      throw new Error('ExpectedSpendScriptForFinalizedTransaction');
-    }
-
     // Final scriptsig for this input
     if (!!args.is_final && !!n.partial_sig.length) {
-      const isWitness = !!n.witness_script;
+      const isWitness = !!n.witness_script && !n.witness_utxo;
       const redeem = n.redeem_script;
       const [signature] = n.partial_sig;
 
@@ -363,8 +436,82 @@ module.exports = args => {
           signature: n.signature,
         });
 
-        return Buffer.concat([varuint.encode(sig.length), sig]);
+        return Buffer.concat([encode(sig.length), sig]);
       });
+
+      // Pay to Public Key?
+      if (!n.redeem_script && !n.witness_script && !n.witness_utxo) {
+        n.partial_sig.forEach(partial => {
+          const pubKey = Buffer.from(partial.public_key, 'hex');
+
+          const sig = encodeSignature({
+            flag: partial.hash_type,
+            signature: partial.signature,
+          });
+
+          const sigPush = Buffer.concat([encode(sig.length), sig]);
+          const pubKeyPush = Buffer.concat([encode(pubKey.length), pubKey]);
+
+          pairs.push({
+            type: Buffer.from(types.input.final_scriptsig, 'hex'),
+            value: Buffer.concat([sigPush, pubKeyPush]),
+          });
+        });
+      }
+
+      // Pay to witness public key hash
+      if (!n.redeem_script && !n.witness_script && !!n.witness_utxo) {
+        n.partial_sig.forEach(partial => {
+          const sig = encodeSignature({
+            flag: partial.hash_type,
+            signature: partial.signature,
+          });
+
+          const components = []
+            .concat(pushData({data: sig}))
+            .concat(pushData({data: Buffer.from(partial.public_key, 'hex')}));
+
+          const value = Buffer.concat([
+            encode(components.length),
+            Buffer.concat(components),
+          ]);
+
+          pairs.push({
+            value,
+            type: Buffer.from(types.input.final_scriptwitness, 'hex'),
+          });
+        });
+      }
+
+      if (isNestedP2wpkhReedeemScript(n.redeem_script) && !!n.witness_utxo) {
+        n.partial_sig.forEach(partial => {
+          const sig = encodeSignature({
+            flag: partial.hash_type,
+            signature: partial.signature,
+          });
+
+          const components = []
+            .concat(pushData({data: sig}))
+            .concat(pushData({data: Buffer.from(partial.public_key, 'hex')}));
+
+          const value = Buffer.concat([
+            encode(components.length),
+            Buffer.concat(components),
+          ]);
+
+          const redeemScript = Buffer.from(n.redeem_script, 'hex');
+
+          pairs.push({
+            value: pushData({data: redeemScript}),
+            type: Buffer.from(types.input.final_scriptsig, 'hex'),
+          });
+
+          pairs.push({
+            value,
+            type: Buffer.from(types.input.final_scriptwitness, 'hex'),
+          });
+        });
+      }
 
       // Non-witness Multi-sig?
       if (isMultisig({script: n.redeem_script})) {
@@ -416,7 +563,7 @@ module.exports = args => {
 
         pairs.push({
           type: Buffer.from(types.input.final_scriptwitness, 'hex'),
-          value: Buffer.concat([varuint.encode(components.length), values]),
+          value: Buffer.concat([encode(components.length), values]),
         });
       }
 
@@ -433,7 +580,7 @@ module.exports = args => {
             const pushValue = Buffer.from(value, 'hex');
 
             const pushDataValue = Buffer.concat([
-              varuint.encode(pushValue.length),
+              encode(pushValue.length),
               pushValue,
             ]);
 
@@ -442,7 +589,7 @@ module.exports = args => {
         }
 
         const value = Buffer.concat([
-          varuint.encode(components.length),
+          encode(components.length),
           Buffer.concat(components),
         ]);
 
@@ -467,10 +614,12 @@ module.exports = args => {
           });
         }
 
-        pairs.push({
-          value: Buffer.concat(components.map(data => pushData({data}))),
-          type: Buffer.from(types.input.final_scriptsig, 'hex'),
-        });
+        if (!n.witness_utxo) {
+          pairs.push({
+            value: Buffer.concat(components.map(data => pushData({data}))),
+            type: Buffer.from(types.input.final_scriptsig, 'hex'),
+          });
+        }
       }
     }
 

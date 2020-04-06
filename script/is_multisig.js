@@ -20,7 +20,13 @@ module.exports = ({script}) => {
     return false;
   }
 
-  const decompiled = decompile(Buffer.from(script, 'hex')).map(n => {
+  const decompiled = decompile(Buffer.from(script, 'hex'));
+
+  if (!decompiled) {
+    return false;
+  }
+
+  const scriptElements = decompiled.map(n => {
     if (Buffer.isBuffer(n)) {
       return n;
     } else if (n > opNumberOffset && n <= opNumberOffset + maxKeyCount) {
@@ -30,7 +36,7 @@ module.exports = ({script}) => {
     }
   });
 
-  const [opCheckMultiSig, keyCount, ...elements] = decompiled.reverse();
+  const [opCheckMultiSig, keyCount, ...elements] = scriptElements.reverse();
 
   // The final op-code must be OP_CHECKMULTISIG
   if (opCheckMultiSig !== OP_CHECKMULTISIG) {

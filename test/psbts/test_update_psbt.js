@@ -1,8 +1,8 @@
 const {test} = require('tap');
 const {Transaction} = require('bitcoinjs-lib');
 
-const {decodePsbt} = require('./../../psbts');
-const {updatePsbt} = require('./../../psbts');
+const {decodePsbt} = require('./../../');
+const {updatePsbt} = require('./../../');
 
 // Test scenarios
 const tests = {

@@ -180,6 +180,26 @@ Update a PSBT with signatures
       psbt: <BIP 174 Encoded PSBT Hex String>
     }
 
+### transactionAsPsbt
+
+Convert a signed transaction to a signed PSBT
+
+Note: not all signed transactions can be converted to a signed PSBT. For
+example, a preimage cannot be represented in a standard PSBT.
+
+    {
+      spending: [<Spending Transaction Hex String>]
+      transaction: <Hex Encoded Transaction String>
+    }
+
+    @throws
+    <Error>
+
+    @returns
+    {
+      psbt: <Finalized PSBT String>
+    }
+
 ### updatePsbt
 
 Update a PSBT

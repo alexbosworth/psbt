@@ -1,7 +1,7 @@
 const {test} = require('tap');
 
-const {decodePsbt} = require('./../../psbts');
-const {extractTransaction} = require('./../../psbts');
+const {decodePsbt} = require('./../../');
+const {extractTransaction} = require('./../../');
 
 // Test scenarios
 const tests = {

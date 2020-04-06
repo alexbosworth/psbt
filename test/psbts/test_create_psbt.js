@@ -1,6 +1,6 @@
 const {test} = require('tap');
 
-const {createPsbt} = require('./../../psbts');
+const {createPsbt} = require('./../../');
 
 // Test scenarios
 const tests = {

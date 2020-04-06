@@ -5,6 +5,7 @@ const {encodePsbt} = require('./psbts');
 const {extractTransaction} = require('./psbts');
 const {finalizePsbt} = require('./psbts');
 const {signPsbt} = require('./psbts');
+const {transactionAsPsbt} = require('./psbts');
 const {updatePsbt} = require('./psbts');
 
 module.exports = {
@@ -15,5 +16,6 @@ module.exports = {
   extractTransaction,
   finalizePsbt,
   signPsbt,
+  transactionAsPsbt,
   updatePsbt,
 };

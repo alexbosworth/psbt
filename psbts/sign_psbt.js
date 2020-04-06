@@ -188,5 +188,5 @@ module.exports = args => {
     });
   });
 
-  return updatePsbt({signatures, psbt: args.psbt, signatures});
+  return updatePsbt({signatures, psbt: args.psbt});
 };
