@@ -25,6 +25,7 @@ const {decompile} = script;
 const {hash160} = crypto;
 const {isBuffer} = Buffer;
 const isNestedP2wpkhReedeemScript = n => !!n && n.length === 44;
+const publicKeyHashLength = 20;
 const redeemHashLength = 20;
 const {sha256} = crypto;
 const transactionId = tx => Transaction.fromHex(tx).getId();
@@ -311,7 +312,19 @@ module.exports = args => {
       }
     })();
 
-    if (!!spendsTx.hasWitnesses() || !!nestedP2wpkh) {
+    const isP2wkh = (() => {
+      const decompiled = decompile(spendOut.script);
+
+      if (decompiled.length !== 2) {
+        return false;
+      }
+
+      const [version, push] = decompiled;
+
+      return push.length === publicKeyHashLength;
+    })();
+
+    if (!!spendsTx.hasWitnesses() || isP2wkh || !!nestedP2wpkh) {
       utxo.witness_utxo = {
         script_pub: spendOut.script.toString('hex'),
         tokens: spendOut.value,
