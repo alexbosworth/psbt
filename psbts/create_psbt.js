@@ -1,9 +1,11 @@
 const {defaultTransactionVersionNumber} = require('./constants');
 const encodePsbt = require('./encode_psbt');
-const {global} = require('./types');
 const {Transaction} = require('./../tokens');
+const types = require('./types');
 
-const type = Buffer.from(global.unsigned_tx, 'hex');
+const hexAsBuffer = hex => Buffer.from(hex, 'hex');
+const {isArray} = Array;
+const type = Buffer.from(types.global.unsigned_tx, 'hex');
 
 /** Create a PSBT
 
@@ -27,11 +29,11 @@ const type = Buffer.from(global.unsigned_tx, 'hex');
   }
 */
 module.exports = ({outputs, timelock, utxos, version}) => {
-  if (!Array.isArray(outputs)) {
+  if (!isArray(outputs)) {
     throw new Error('ExpectedTransactionOutputsForNewPsbt');
   }
 
-  if (!Array.isArray(utxos)) {
+  if (!isArray(utxos)) {
     throw new Error('ExpectedTransactionInputsForNewPsbt');
   }
 
@@ -43,7 +45,7 @@ module.exports = ({outputs, timelock, utxos, version}) => {
 
   // Push all the unsigned inputs into the transaction
   utxos
-    .map(({id, vout}) => ({vout, hash: Buffer.from(id, 'hex')}))
+    .map(({id, vout}) => ({vout, hash: hexAsBuffer(id)}))
     .forEach(({hash, vout}) => tx.addInput(hash.reverse(), vout));
 
   // Set sequence numbers as necessary
@@ -53,7 +55,7 @@ module.exports = ({outputs, timelock, utxos, version}) => {
 
   // Append all the outputs to the transaction
   outputs
-    .map(({script, tokens}) => ({tokens, script: Buffer.from(script, 'hex')}))
+    .map(({script, tokens}) => ({tokens, script: hexAsBuffer(script)}))
     .forEach(({script, tokens}) => tx.addOutput(script, tokens));
 
   // Initialize the type value pairs with the transaction
