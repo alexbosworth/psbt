@@ -246,7 +246,7 @@ module.exports = args => {
 
     const spending = args.transactions.find(transaction => {
       return transactionId(transaction) === input.hash.toString('hex');
-    })
+    });
 
     const spendOut = !spending ? null : txOuts(spending)[input.index];
 

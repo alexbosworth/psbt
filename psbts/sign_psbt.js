@@ -4,12 +4,15 @@ const {ECPair} = require('./../tokens');
 const {encodeSignature} = require('./../signatures');
 const {hexBase} = require('./constants');
 const {networks} = require('./../tokens');
+const {payments} = require('./../tokens');
 const {script} = require('./../tokens');
 const {Transaction} = require('./../tokens');
 const updatePsbt = require('./update_psbt');
 
 const {decompile} = script;
+const defaultSighashType = Transaction.SIGHASH_ALL;
 const {hash160} = crypto;
+const {p2pkh} = payments;
 
 /** Update a PSBT with signatures
 
@@ -55,6 +58,36 @@ module.exports = args => {
     // Absent bip32 derivations to look for, look in scripts for keys
     if (!input.bip32_derivations) {
       const scripts = [input.redeem_script, input.witness_script];
+
+      // When there are no scripts, look for a witness pay to public key hash
+      if (!!input.witness_utxo && !scripts.filter(n => !!n).length) {
+        const scriptPub = input.witness_utxo.script_pub;
+
+        const [, pkHash] = decompile(Buffer.from(scriptPub, 'hex'));
+
+        const keyForHash = pkHashes[pkHash.toString('hex')];
+
+        [keyForHash].filter(n => !!n).forEach(signingKey => {
+          const hashToSign = tx.hashForWitnessV0(
+            vin,
+            p2pkh({hash: pkHash}).output,
+            input.witness_utxo.tokens,
+            input.sighash_type || defaultSighashType
+          );
+
+          const sig = encodeSignature({
+            flag: input.sighash_type || defaultSighashType,
+            signature: signingKey.sign(hashToSign).toString('hex'),
+          });
+
+          return signatures.push({
+            vin,
+            hash_type: input.sighash_type || defaultSighashType,
+            public_key: signingKey.publicKey.toString('hex'),
+            signature: sig.toString('hex'),
+          });
+        });
+      }
 
       // Go through the scripts that match keys and add signatures
       scripts.filter(n => !!n).map(n => Buffer.from(n, 'hex')).forEach(n => {
