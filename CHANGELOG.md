@@ -1,6 +1,6 @@
 # Versions
 
-## 1.1.7
+## 1.1.8
 
 - `signPsbt`: add discovery of pay to witness public keys to sign
 
