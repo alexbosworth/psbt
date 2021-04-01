@@ -996,7 +996,7 @@ const tests = {
 
 // Run the tests
 Object.keys(tests).map(t => tests[t]).forEach(({args, err, msg, result}) => {
-  return test(msg, ({assert, end, equal, throws}) => {
+  return test(msg, ({end, equal, ok, throws}) => {
     if (!!err) {
       throws(() => decodePsbt(args), new Error(err));
 
@@ -1005,18 +1005,18 @@ Object.keys(tests).map(t => tests[t]).forEach(({args, err, msg, result}) => {
 
     const decoded = decodePsbt(args);
 
-    assert(Array.isArray(decoded.inputs), 'Inputs must always be an array');
+    ok(Array.isArray(decoded.inputs), 'Inputs must always be an array');
     equal(decoded.inputs.length, result.inputs.length, 'Matches inputs count');
 
-    assert(Array.isArray(decoded.pairs), 'Pairs must always be an array');
+    ok(Array.isArray(decoded.pairs), 'Pairs must always be an array');
     equal(decoded.pairs.length, result.pairs.length, 'Matches pairs count');
 
-    assert(Array.isArray(decoded.outputs), 'Outputs must always be an array');
+    ok(Array.isArray(decoded.outputs), 'Outputs must always be an array');
     equal(decoded.outputs.length, result.outputs.length, 'Same outputs count');
 
     if (!!decoded.unrecognized_attributes || result.unrecognized_attributes) {
-      assert(Array.isArray(decoded.unrecognized_attributes));
-      assert(Array.isArray(result.unrecognized_attributes));
+      ok(Array.isArray(decoded.unrecognized_attributes));
+      ok(Array.isArray(result.unrecognized_attributes));
 
       const gotUnrecognized = decoded.unrecognized_attributes;
       const expectedUnrecognized = result.unrecognized_attributes;
@@ -1037,7 +1037,7 @@ Object.keys(tests).map(t => tests[t]).forEach(({args, err, msg, result}) => {
       const expected = result.inputs[i];
 
       if (!!n.bip32_derivations || !!expected.bip32_derivations) {
-        assert(!!n.bip32_derivations && expected.bip32_derivations);
+        ok(!!n.bip32_derivations && expected.bip32_derivations);
 
         equal(n.bip32_derivations.length, expected.bip32_derivations.length);
 
@@ -1073,8 +1073,8 @@ Object.keys(tests).map(t => tests[t]).forEach(({args, err, msg, result}) => {
       const gotUnrecognized = n.unrecognized_attributes;
 
       if (expectedUnrecognized || gotUnrecognized) {
-        assert(Array.isArray(expectedUnrecognized));
-        assert(Array.isArray(gotUnrecognized));
+        ok(Array.isArray(expectedUnrecognized));
+        ok(Array.isArray(gotUnrecognized));
 
         equal(gotUnrecognized.length, expectedUnrecognized.length);
 
@@ -1115,8 +1115,8 @@ Object.keys(tests).map(t => tests[t]).forEach(({args, err, msg, result}) => {
       const gotUnrecognized = n.unrecognized_attributes;
 
       if (expectedUnrecognized || gotUnrecognized) {
-        assert(Array.isArray(expectedUnrecognized));
-        assert(Array.isArray(gotUnrecognized));
+        ok(Array.isArray(expectedUnrecognized));
+        ok(Array.isArray(gotUnrecognized));
 
         equal(gotUnrecognized.length, expectedUnrecognized.length);
 

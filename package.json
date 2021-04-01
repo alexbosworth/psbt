@@ -10,7 +10,7 @@
   },
   "description": "Methods for working with BIP 174 PSBTs",
   "devDependencies": {
-    "tap": "14.11.0"
+    "tap": "15.0.1"
   },
   "directories": {
     "test": "test"
@@ -22,7 +22,7 @@
     "url": "https://github.com/alexbosworth/psbt.git"
   },
   "scripts": {
-    "test": "tap test/psbts/*.js"
+    "test": "tap --branches=1 --functions=1 --lines=1 --statements=1 test/psbts/*.js"
   },
-  "version": "1.1.8"
+  "version": "1.1.9"
 }
