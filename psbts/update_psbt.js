@@ -325,6 +325,7 @@ module.exports = args => {
     })();
 
     if (!!spendsTx.hasWitnesses() || isP2wkh || !!nestedP2wpkh) {
+      // utxo.non_witness_utxo = spends.toString('hex');
       utxo.witness_utxo = {
         script_pub: spendOut.script.toString('hex'),
         tokens: spendOut.value,
@@ -343,6 +344,16 @@ module.exports = args => {
 
     if (!!redeemScript) {
       utxo.redeem_script = redeemScript.toString('hex');
+    }
+
+    if (isP2wkh) {
+      const [, hash] = decompile(spendOut.script);
+
+      const derivation = pubKeyHashes[hash.toString('hex')];
+
+      if (derivation) {
+        utxo.bip32_derivations = [derivation];
+      }
     }
 
     return inputs.push(utxo);

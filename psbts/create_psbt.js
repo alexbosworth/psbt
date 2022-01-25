@@ -45,8 +45,8 @@ module.exports = ({outputs, timelock, utxos, version}) => {
 
   // Push all the unsigned inputs into the transaction
   utxos
-    .map(({id, vout}) => ({vout, hash: hexAsBuffer(id)}))
-    .forEach(({hash, vout}) => tx.addInput(hash.reverse(), vout));
+    .map(({id, vout}) => ({vout, hash: hexAsBuffer(id).reverse()}))
+    .forEach(({hash, vout}) => tx.addInput(hash, vout));
 
   // Set sequence numbers as necessary
   utxos

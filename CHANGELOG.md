@@ -1,5 +1,9 @@
 # Versions
 
+## 1.1.11
+
+- `updatePsbt`: Add support for bip32 derivation paths on p2wpkh spends
+
 ## 1.1.10
 
 - `signPsbt`: add discovery of pay to witness public keys to sign
