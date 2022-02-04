@@ -1,4 +1,5 @@
 const {test} = require('tap');
+const tinysecp = require('tiny-secp256k1');
 
 const {decodePsbt} = require('./../../');
 const {extractTransaction} = require('./../../');
@@ -90,12 +91,16 @@ const tests = {
 
 // Run the tests
 Object.keys(tests).map(t => tests[t]).forEach(({args, err, expected, msg}) => {
-  return test(msg, ({end, equal}) => {
+  return test(msg, async ({end, equal}) => {
+    const ecp = (await import('ecpair')).ECPairFactory(tinysecp);
+
+    args.ecp = ecp;
+
     const got = transactionAsPsbt(args);
 
-    const final = finalizePsbt({psbt: got.psbt});
+    const final = finalizePsbt({ecp, psbt: got.psbt});
 
-    const {transaction} = extractTransaction({psbt: final.psbt});
+    const {transaction} = extractTransaction({ecp, psbt: final.psbt});
 
     equal(final.psbt, expected.psbt, 'PSBT is formed as expected');
     equal(args.transaction, transaction, 'Transactions are equal');

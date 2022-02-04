@@ -5,6 +5,7 @@ const updatePsbt = require('./update_psbt');
 
 /** Combine multiple PSBTs
   {
+    ecp: <ECPair Object>
     psbts: [<BIP 174 Encoded PSBT Hex String>]
   }
 
@@ -16,7 +17,7 @@ const updatePsbt = require('./update_psbt');
     psbt: <BIP 174 Encoded PSBT Hex String>
   }
 */
-module.exports = ({psbts}) => {
+module.exports = ({ecp, psbts}) => {
   const additionalAttributes = [];
   const globalAttributes = {};
   const inputAttributes = [];
@@ -25,7 +26,7 @@ module.exports = ({psbts}) => {
   const signatures = [];
   let tx;
 
-  psbts.map(psbt => decodePsbt({psbt})).forEach(decoded => {
+  psbts.map(psbt => decodePsbt({ecp, psbt})).forEach(decoded => {
     // Transactions must be unique for all combined psbts
     if (!!tx && tx !== decoded.unsigned_transaction) {
       throw new Error('ExpectedUniqueTransaction');
@@ -92,6 +93,7 @@ module.exports = ({psbts}) => {
 
   try {
     return updatePsbt({
+      ecp,
       signatures,
       additional_attributes: additionalAttributes,
       psbt: referencePsbt,

@@ -10,6 +10,7 @@ const {decompile} = script;
 /** Extract a transaction from a finalized PSBT
 
   {
+    ecp: <ECPair Object>
     psbt: <BIP 174 Encoded PSBT Hex String>
   }
 
@@ -21,11 +22,11 @@ const {decompile} = script;
     transaction: <Hex Serialized Transaction String>
   }
 */
-module.exports = ({psbt}) => {
+module.exports = ({ecp, psbt}) => {
   let decoded;
 
   try {
-    decoded = decodePsbt({psbt});
+    decoded = decodePsbt({ecp, psbt});
   } catch (err) {
     throw err;
   }

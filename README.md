@@ -8,11 +8,22 @@ The format is defined in BIP-0174:
 
 ## Methods
 
+An ECPair object is required for some methods:
+
+```node
+const tinysecp = require('tiny-secp256k1');
+
+const ECPair = await import('ecpair')
+
+const ecp = ECPair.ECPairFactory(tinysecp);
+```
+
 ### combinePsbts
 
 Combine multiple PSBTs
 
     {
+      ecp: <ECPair Object>
       psbts: [<BIP 174 Encoded PSBT Hex String>]
     }
 
@@ -52,6 +63,7 @@ Create a PSBT
 Decode a BIP 174 encoded PSBT
 
     {
+      ecp: <ECPair Object>
       psbt: <Hex Encoded Partially Signed Bitcoin Transaction String>
     }
 
@@ -135,6 +147,7 @@ Encode a Partially Signed Bitcoin Transaction
 Extract a transaction from a finalized PSBT
 
     {
+      ecp: <ECPair Object>
       psbt: <BIP 174 Encoded PSBT Hex String>
     }
 
@@ -151,6 +164,7 @@ Extract a transaction from a finalized PSBT
 Finalize the inputs of a PSBT
 
     {
+      ecp: <ECPair Object>
       psbt: <BIP 174 Encoded PSBT Hex String>
     }
 
@@ -167,6 +181,7 @@ Finalize the inputs of a PSBT
 Update a PSBT with signatures
 
     {
+      ecp: <ECPair Object>
       network: <Network Name String>
       psbt: <BIP 174 Encoded PSBT Hex String>
       signing_keys: [<WIF Encoded Private Key String>]
@@ -188,6 +203,7 @@ Note: not all signed transactions can be converted to a signed PSBT. For
 example, a preimage cannot be represented in a standard PSBT.
 
     {
+      ecp: <ECPair Object>
       spending: [<Spending Transaction Hex String>]
       transaction: <Hex Encoded Transaction String>
     }
@@ -216,6 +232,7 @@ Update a PSBT
         path: <BIP 32 Derivation Path String>
         public_key: <Public Key String>
       }]
+      ecp: <ECPair Object>
       psbt: <BIP 174 Encoded PSBT String>
       [redeem_scripts]: [<Hex Encoded Redeem Script String>]
       [sighashes]: [{

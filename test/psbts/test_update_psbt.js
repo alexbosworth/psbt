@@ -1,4 +1,5 @@
 const {test} = require('tap');
+const tinysecp = require('tiny-secp256k1');
 const {Transaction} = require('bitcoinjs-lib');
 
 const {decodePsbt} = require('./../../');
@@ -84,17 +85,21 @@ const tests = {
 
 // Run the tests
 Object.keys(tests).map(t => tests[t]).forEach(({args, err, msg, result}) => {
-  return test(msg, ({end, equal, throws, type}) => {
+  return test(msg, async ({end, equal, throws, type}) => {
+    const ecp = (await import('ecpair')).ECPairFactory(tinysecp);
+
+    args.ecp = ecp;
+
     if (!!err) {
       throws(() => encodePsbt(args), new Error(err));
 
       return end();
     }
 
-    const expected = decodePsbt({psbt: result.psbt});
+    const expected = decodePsbt({ecp, psbt: result.psbt});
     const {psbt} = updatePsbt(args);
 
-    const updated = decodePsbt({psbt});
+    const updated = decodePsbt({ecp, psbt});
 
     equal(updated.pairs.length, expected.pairs.length, 'Map size is equal');
 

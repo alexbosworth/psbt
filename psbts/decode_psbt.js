@@ -6,7 +6,6 @@ const {checkNonWitnessUtxo} = require('./../utxos');
 const {checkWitnessUtxo} = require('./../utxos');
 const {crypto} = require('./../tokens');
 const {decodeSignature} = require('./../signatures');
-const {ECPair} = require('./../tokens');
 const {keyCodeByteLength} = require('./constants');
 const {script} = require('./../tokens');
 const {sigHashByteLength} = require('./constants');
@@ -22,6 +21,7 @@ const {hash160} = crypto;
 /** Decode a BIP 174 encoded PSBT
 
   {
+    ecp: <ECPair Object>
     psbt: <Hex Encoded Partially Signed Bitcoin Transaction String>
   }
 
@@ -80,7 +80,7 @@ const {hash160} = crypto;
     unsigned_transaction: <Unsigned Transaction Hex String>
   }
 */
-module.exports = ({psbt}) => {
+module.exports = ({ecp, psbt}) => {
   if (!psbt) {
     throw new Error('ExpectedHexSerializedPartiallySignedBitcoinTransaction');
   }
@@ -244,7 +244,10 @@ module.exports = ({psbt}) => {
         decoded.unrecognized_attributes = unrecognized;
         globalKeys[type] = true;
 
-        decoded.unrecognized_attributes.push({type, value: value.toString('hex')});
+        decoded.unrecognized_attributes.push({
+          type,
+          value: value.toString('hex'),
+        });
         break;
       }
     } else if (!!foundInputs.length || !!input) {
@@ -270,7 +273,7 @@ module.exports = ({psbt}) => {
         const key = keyType.slice([keyTypeCode].length);
 
         try {
-          bip32 = bip32Derivation({derivation, key});
+          bip32 = bip32Derivation({derivation, ecp, key});
         } catch (err) {
           throw err;
         }
@@ -341,7 +344,7 @@ module.exports = ({psbt}) => {
 
         // Make sure the partial signature public key is a valid pubkey
         try {
-          sigPubKey = ECPair.fromPublicKey(keyType.slice(keyCodeByteLength));
+          sigPubKey = ecp.fromPublicKey(keyType.slice(keyCodeByteLength));
         } catch (err) {
           throw new Error('InvalidPublicKeyForPartialSig');
         }
@@ -447,7 +450,7 @@ module.exports = ({psbt}) => {
         const key = keyType.slice([keyTypeCode].length);
 
         try {
-          output.bip32_derivation = bip32Derivation({derivation, key});
+          output.bip32_derivation = bip32Derivation({derivation, ecp, key});
         } catch (err) {
           throw err;
         }

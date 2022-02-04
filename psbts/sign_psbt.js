@@ -1,6 +1,5 @@
 const {crypto} = require('./../tokens');
 const decodePsbt = require('./decode_psbt');
-const {ECPair} = require('./../tokens');
 const {encodeSignature} = require('./../signatures');
 const {hexBase} = require('./constants');
 const {networks} = require('./../tokens');
@@ -17,6 +16,7 @@ const {p2pkh} = payments;
 /** Update a PSBT with signatures
 
   {
+    ecp: <ECPair Object>
     network: <Network Name String>
     psbt: <BIP 174 Encoded PSBT Hex String>
     signing_keys: [<WIF Encoded Private Key String>]
@@ -37,7 +37,7 @@ module.exports = args => {
   const pkHashes = {};
 
   args.signing_keys.map(k => {
-    const key = ECPair.fromWIF(k, network);
+    const key = args.ecp.fromWIF(k, network);
 
     keys[key.publicKey.toString('hex')] = key;
     pkHashes[hash160(key.publicKey).toString('hex')] = key;
@@ -46,7 +46,7 @@ module.exports = args => {
   });
 
   try {
-    decoded = decodePsbt({psbt: args.psbt});
+    decoded = decodePsbt({ecp: args.ecp, psbt: args.psbt});
   } catch (err) {
     throw err;
   }
@@ -221,5 +221,5 @@ module.exports = args => {
     });
   });
 
-  return updatePsbt({signatures, psbt: args.psbt});
+  return updatePsbt({signatures, ecp: args.ecp, psbt: args.psbt});
 };

@@ -1,6 +1,5 @@
 const {bip32KeyByteLength} = require('./constants');
 const {bip32KeyLimit} = require('./constants');
-const {ECPair} = require('./../tokens');
 const {fingerprintByteLength} = require('./constants');
 
 const {floor} = Math;
@@ -9,6 +8,7 @@ const {floor} = Math;
 
   {
     derivation: <BIP 32 Derivation Buffer Object>
+    ecp: <ECPair Object>
     key: <Public Key Buffer Object>
   }
 
@@ -22,12 +22,12 @@ const {floor} = Math;
     public_key: <Public Key Hex String>
   }
 */
-module.exports = ({derivation, key}) => {
+module.exports = ({derivation, ecp, key}) => {
   let childKey;
 
   // Derive the public key from the public key bytes
   try {
-    childKey = ECPair.fromPublicKey(key);
+    childKey = ecp.fromPublicKey(key);
   } catch (err) {
     throw new Error('InvalidBip32Key');
   }

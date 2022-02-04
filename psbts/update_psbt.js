@@ -45,6 +45,7 @@ const txOuts = tx => Transaction.fromHex(tx).outs;
       path: <BIP 32 Derivation Path String>
       public_key: <Public Key String>
     }]
+    ecp: <ECPair Object>
     psbt: <BIP 174 Encoded PSBT String>
     [redeem_scripts]: [<Hex Encoded Redeem Script String>]
     [sighashes]: [{
@@ -71,13 +72,17 @@ const txOuts = tx => Transaction.fromHex(tx).outs;
   }
 */
 module.exports = args => {
+  if (!args.ecp) {
+    throw new Error('ExpectedEcpairObjectToUpdatePsbt');
+  }
+
   if (!args.psbt) {
     throw new Error('ExpectedPsbtToUpdate');
   }
 
   const addAttributes = args.additional_attributes || [];
   const bip32Derivations = args.bip32_derivations || [];
-  const decoded = decodePsbt({psbt: args.psbt});
+  const decoded = decodePsbt({ecp: args.ecp, psbt: args.psbt});
   const inputs = [];
   const outputs = [];
   const pairs = []

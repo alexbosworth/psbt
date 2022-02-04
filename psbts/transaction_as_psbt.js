@@ -21,6 +21,7 @@ const transactionId = hex => Transaction.fromHex(hex).getId();
   example, a preimage cannot be represented in a standard PSBT.
 
   {
+    ecp: <ECPair Object>
     spending: [<Spending Transaction Hex String>]
     transaction: <Hex Encoded Transaction String>
   }
@@ -33,7 +34,7 @@ const transactionId = hex => Transaction.fromHex(hex).getId();
     psbt: <Signed PSBT String>
   }
 */
-module.exports = ({spending, transaction}) => {
+module.exports = ({ecp, spending, transaction}) => {
   const redeemScripts = [];
   const signatures = [];
   const tx = Transaction.fromHex(transaction);
@@ -171,6 +172,7 @@ module.exports = ({spending, transaction}) => {
   });
 
   return updatePsbt({
+    ecp,
     psbt,
     signatures,
     transactions: spending,
