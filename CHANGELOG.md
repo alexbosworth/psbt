@@ -1,5 +1,9 @@
 # Versions
 
+## 2.1.0
+
+- `decodePsbt`: Add support for decoding BIP 371 Taproot fields
+
 ## 2.0.1
 
 - Update bitcoinjs-lib dependency

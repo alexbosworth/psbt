@@ -1,5 +1,5 @@
 const BN = require('bn.js');
-const varuint = require('varuint-bitcoin')
+const varuint = require('varuint-bitcoin');
 
 const {bip32Derivation} = require('./../bip32');
 const {checkNonWitnessUtxo} = require('./../utxos');
@@ -7,16 +7,29 @@ const {checkWitnessUtxo} = require('./../utxos');
 const {crypto} = require('./../tokens');
 const {decodeSignature} = require('./../signatures');
 const {keyCodeByteLength} = require('./constants');
+const parseTaprootTree = require('./parse_taproot_tree');
 const {script} = require('./../tokens');
 const {sigHashByteLength} = require('./constants');
+const {taprootBip32} = require('./../bip32');
 const {tokensByteLength} = require('./constants');
 const {Transaction} = require('./../tokens');
 const types = require('./types');
 
+const bufferAsHex = buffer => buffer.toString('hex');
 const {decompile} = script;
 const globalSeparatorCode = parseInt(types.global.separator, 16);
-const magicBytes = Buffer.from(types.global.magic);
 const {hash160} = crypto;
+const isControlBlockLength = n => n >= 33 && n <= 4129 && (n - 33) % 32 === 0;
+const isSchnorrSignature = n => n.length === 64 || n.length === 65;
+const lengthHash = 32;
+const magicBytes = Buffer.from(types.global.magic);
+const scriptForLeafScript = value => value.subarray(0, value.length - 1);
+const tapScriptSigKeyTypeLength = 65;
+const tapScriptSigEnd = 33;
+const valueAsSchnorrSig = n => n.subarray(0, 64);
+const valueAsSigHash = n => n.length === 64 ? 0 : n.readUInt8(64);
+const versionForLeafScript = value => value.subarray(-1).readUInt8();
+const xOnlyPublicKeyByteLength = 32;
 
 /** Decode a BIP 174 encoded PSBT
 
@@ -31,10 +44,11 @@ const {hash160} = crypto;
   @returns
   {
     inputs: [{
-       [bip32_derivations]: [{
-          fingerprint: <Public Key Fingerprint Hex String>
-          path: <BIP 32 Child / Hardened Child / Index Derivation Path String>
-          public_key: <Public Key Hex String>
+      [bip32_derivations]: [{
+        fingerprint: <Public Key Fingerprint Hex String>
+        [leaf_hashes]: <Taproot Leaf Hash Hex String>
+        path: <BIP 32 Child / Hardened Child / Index Derivation Path String>
+        public_key: <Public Key Hex String>
       }]
       [final_scriptsig]: <Final ScriptSig Hex String>
       [final_scriptwitness]: <Final Script Witness Hex String>
@@ -46,6 +60,15 @@ const {hash160} = crypto;
       }]
       [redeem_script]: <Hex Encoded Redeem Script String>
       [sighash_type]: <Sighash Type Number>
+      [taproot_control_block]: <Taproot Script Spend Control Block Hex String>
+      [taproot_leaf_hash]: <Taproot Leaf Hash Hex String>
+      [taproot_leaf_public_key]: <Leaf Script X Only Public Key Hex String>
+      [taproot_leaf_script]: <Taproot Leaf Spend Script Hex String>
+      [taproot_leaf_version]: <Taproot Leaf Spend Script Version Number>
+      [taproot_internal_key]: <X Only Taproot Internal Public Key Hex String>
+      [taproot_key_spend_sig]: <Taproot Key Spend Signature Hex String>
+      [taproot_root_hash]: <Taproot Merkle Root Hash Hex String>
+      [taproot_script_signature]: <Taproot Script Spend Script Hex String>
       [unrecognized_attributes]: [{
         type: <Key Type Hex String>
         value: <Value Hex String>
@@ -59,10 +82,17 @@ const {hash160} = crypto;
     outputs: [{
       [bip32_derivation]: {
         fingerprint: <Public Key Fingerprint Hex String>
+        [leaf_hashes]: <Taproot Leaf Hash Hex String>
         path: <BIP 32 Child/HardenedChild/Index Derivation Path Hex String>
         public_key: <Public Key Hex String>
       }
       [redeem_script]: <Hex Encoded Redeem Script>
+      [taproot_internal_key]: <X Only Taproot Internal Public Key Hex String>
+      [taproot_script_tree]: [{
+        depth: <Tree Depth Number>
+        script: <Leaf Script Hex String>
+        version: <Leaf Script Version Number>
+      }]
       [unrecognized_attributes]: [{
         type: <Key Type Hex String>
         value: <Value Hex String>
@@ -386,6 +416,70 @@ module.exports = ({ecp, psbt}) => {
         input.sighash_type = value.readUInt32LE();
         break;
 
+      case types.input.tap_bip32_derivation:
+        input.bip32_derivations = input.bip32_derivations || [];
+
+        input.bip32_derivations.push(taprootBip32({
+          type: bufferAsHex(keyType),
+          value: bufferAsHex(value),
+        }));
+        break;
+
+      case types.input.tap_internal_key:
+        if (value.length !== xOnlyPublicKeyByteLength) {
+          throw new Error('ExpectedXOnlyPublicKeyForTapInternalKey');
+        }
+
+        input.taproot_internal_key = bufferAsHex(value);
+        break;
+
+      case types.input.tap_key_sig:
+        if (!isSchnorrSignature(value)) {
+          throw new Error('UnexpectedSizeOfTaprootKeySignature');
+        }
+
+        input.sighash_type = valueAsSigHash(value);
+        input.taproot_key_spend_sig = bufferAsHex(valueAsSchnorrSig(value));
+        break;
+
+      case types.input.tap_leaf_script:
+        const controlBlock = keyType.slice(keyCodeByteLength);
+
+        if (!isControlBlockLength(controlBlock.length)) {
+          throw new Error('ExpectedControlBlockForTapLeafScriptInput');
+        }
+
+        input.taproot_control_block = bufferAsHex(controlBlock);
+        input.taproot_leaf_script = bufferAsHex(scriptForLeafScript(value));
+        input.taproot_leaf_version = versionForLeafScript(value);
+        break;
+
+      case types.input.tap_merkle_root:
+        if (value.length !== lengthHash) {
+          throw new Error('UnexpectedSizeOfTaprootMerkleRootHashInInput');
+        }
+
+        input.taproot_root_hash = bufferAsHex(value);
+        break;
+
+      case types.input.tap_script_sig:
+        if (keyType.length !== tapScriptSigKeyTypeLength) {
+          throw new Error('UnexpectedSizeOfTaprootScriptSigKeyType');
+        }
+
+        if (!isSchnorrSignature(value)) {
+          throw new Error('UnexpectedSizeOfTaprootScriptSignature');
+        }
+
+        const publicKey = keyType.subarray(keyCodeByteLength, tapScriptSigEnd);
+        const leafHash = keyType.subarray(tapScriptSigEnd);
+
+        input.sighash_type = valueAsSigHash(value);
+        input.taproot_leaf_hash = bufferAsHex(leafHash);
+        input.taproot_leaf_public_key = bufferAsHex(publicKey);
+        input.taproot_script_signature = bufferAsHex(valueAsSchnorrSig(value));
+        break;
+
       case types.input.witness_script:
         // The key must only contain the 1 byte type.
         if (keyType.length > keyCodeByteLength) {
@@ -468,6 +562,33 @@ module.exports = ({ecp, psbt}) => {
         }
 
         output.redeem_script = value.toString('hex');
+        break;
+
+      case types.output.tap_bip32_derivation:
+        output.bip32_derivation = taprootBip32({
+          type: bufferAsHex(keyType),
+          value: bufferAsHex(value),
+        });
+        break;
+
+      case types.output.tap_internal_key:
+        // The key must only contain the 1 byte type.
+        if (keyType.length > keyCodeByteLength) {
+          throw new Error('InvalidOutputTapInternalKeyTypeKey');
+        }
+
+        // Make sure that the value looks like an x-only public key
+        if (value.length !== xOnlyPublicKeyByteLength) {
+          throw new Error('InvalidOutputXOnlyPublicKeyForTapInternalKey');
+        }
+
+        output.taproot_internal_key = value.toString('hex');
+        break;
+
+      case types.output.tap_tree:
+        const encoded = bufferAsHex(value);
+
+        output.taproot_script_tree = parseTaprootTree({encoded}).tree;
         break;
 
       case types.output.witness_script:

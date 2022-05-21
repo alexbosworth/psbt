@@ -12,12 +12,21 @@
     "partial_sig": "02",
     "redeem_script": "04",
     "sighash_type": "03",
+    "tap_bip32_derivation": "16",
+    "tap_internal_key": "17",
+    "tap_key_sig": "13",
+    "tap_leaf_script": "15",
+    "tap_merkle_root": "18",
+    "tap_script_sig": "14",
     "witness_script": "05",
     "witness_utxo": "01"
   },
   "output": {
     "bip32_derivation": "02",
     "redeem_script": "00",
+    "tap_bip32_derivation": "07",
+    "tap_internal_key": "05",
+    "tap_tree": "06",
     "witness_script": "01"
   }
 }

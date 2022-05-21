@@ -11,7 +11,7 @@
   "description": "Methods for working with BIP 174 PSBTs",
   "devDependencies": {
     "ecpair": "2.0.1",
-    "tap": "16.0.1",
+    "tap": "16.2.0",
     "tiny-secp256k1": "2.2.1"
   },
   "directories": {
@@ -29,5 +29,5 @@
   "scripts": {
     "test": "tap --branches=1 --functions=1 --lines=1 --statements=1 test/psbts/*.js"
   },
-  "version": "2.0.1"
+  "version": "2.1.0"
 }

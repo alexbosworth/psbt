@@ -73,10 +73,11 @@ Decode a BIP 174 encoded PSBT
     @returns
     {
       inputs: [{
-         [bip32_derivations]: [{
-            fingerprint: <Public Key Fingerprint Hex String>
-            path: <BIP 32 Child / Hardened Child / Index Derivation Path String>
-            public_key: <Public Key Hex String>
+        [bip32_derivations]: [{
+          fingerprint: <Public Key Fingerprint Hex String>
+          [leaf_hashes]: <Taproot Leaf Hash Hex String>
+          path: <BIP 32 Child / Hardened Child / Index Derivation Path String>
+          public_key: <Public Key Hex String>
         }]
         [final_scriptsig]: <Final ScriptSig Hex String>
         [final_scriptwitness]: <Final Script Witness Hex String>
@@ -88,6 +89,15 @@ Decode a BIP 174 encoded PSBT
         }]
         [redeem_script]: <Hex Encoded Redeem Script String>
         [sighash_type]: <Sighash Type Number>
+        [taproot_control_block]: <Taproot Script Spend Control Block Hex String>
+        [taproot_leaf_hash]: <Taproot Leaf Hash Hex String>
+        [taproot_leaf_public_key]: <Leaf Script X Only Public Key Hex String>
+        [taproot_leaf_script]: <Taproot Leaf Spend Script Hex String>
+        [taproot_leaf_version]: <Taproot Leaf Spend Script Version Number>
+        [taproot_internal_key]: <X Only Taproot Internal Public Key Hex String>
+        [taproot_key_spend_sig]: <Taproot Key Spend Signature Hex String>
+        [taproot_root_hash]: <Taproot Merkle Root Hash Hex String>
+        [taproot_script_signature]: <Taproot Script Spend Script Hex String>
         [unrecognized_attributes]: [{
           type: <Key Type Hex String>
           value: <Value Hex String>
@@ -101,10 +111,17 @@ Decode a BIP 174 encoded PSBT
       outputs: [{
         [bip32_derivation]: {
           fingerprint: <Public Key Fingerprint Hex String>
+          [leaf_hashes]: <Taproot Leaf Hash Hex String>
           path: <BIP 32 Child/HardenedChild/Index Derivation Path Hex String>
           public_key: <Public Key Hex String>
         }
         [redeem_script]: <Hex Encoded Redeem Script>
+        [taproot_internal_key]: <X Only Taproot Internal Public Key Hex String>
+        [taproot_script_tree]: [{
+          depth: <Tree Depth Number>
+          script: <Leaf Script Hex String>
+          version: <Leaf Script Version Number>
+        }]
         [unrecognized_attributes]: [{
           type: <Key Type Hex String>
           value: <Value Hex String>
