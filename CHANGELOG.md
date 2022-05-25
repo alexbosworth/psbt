@@ -1,5 +1,10 @@
 # Versions
 
+## 2.2.0
+
+- `decodePsbt`: Fix incorrect decoding of bip32 derivation paths
+- `extendPsbt`: Add method to extend a PSBT with specific input metadata
+
 ## 2.1.0
 
 - `decodePsbt`: Add support for decoding BIP 371 Taproot fields

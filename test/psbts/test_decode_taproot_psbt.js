@@ -1,4 +1,4 @@
-const {test} = require('tap');
+const {test} = require('@alexbosworth/tap');
 const tinysecp = require('tiny-secp256k1');
 
 const {decodePsbt} = require('./../../');
@@ -107,7 +107,7 @@ const tests = {
         bip32_derivations: [{
           fingerprint: '772b2da7',
           leaf_hashes: [],
-          path: "m/1'/0'/1/0",
+          path: "m/86'/1'/0'/1/0",
           public_key: 'fe349064c98d6e2a853fa3c9b12bd8b304a19c195c60efa7ee2393046d3fa232',
         }],
         taproot_internal_key: 'fe349064c98d6e2a853fa3c9b12bd8b304a19c195c60efa7ee2393046d3fa232',
@@ -159,7 +159,7 @@ const tests = {
         bip32_derivations: [{
           fingerprint: '772b2da7',
           leaf_hashes: [],
-          path: "m/1'/0'/1/0",
+          path: "m/86'/1'/0'/1/0",
           public_key: 'fe349064c98d6e2a853fa3c9b12bd8b304a19c195c60efa7ee2393046d3fa232',
         }],
         taproot_internal_key: 'fe349064c98d6e2a853fa3c9b12bd8b304a19c195c60efa7ee2393046d3fa232',
@@ -211,7 +211,7 @@ const tests = {
         bip32_derivations: [{
           fingerprint: '00000000',
           leaf_hashes: [],
-          path: "m/0'/0'/0/0",
+          path: "m/86'/0'/0'/0/0",
           public_key: '620763e2113dc4d27d65153d6b889d4e5e0e3ee990e53c75d0ca38f89c45328a'
         }],
       }],
@@ -249,7 +249,7 @@ const tests = {
         bip32_derivations: [{
           fingerprint: '772b2da7',
           leaf_hashes: [],
-          path: "m/1'/0'/1/0",
+          path: "m/86'/1'/0'/1/0",
           public_key: 'fe349064c98d6e2a853fa3c9b12bd8b304a19c195c60efa7ee2393046d3fa232',
         }],
         sighash_type: 0,
@@ -306,7 +306,7 @@ const tests = {
         bip32_derivations: [{
           fingerprint: '772b2da7',
           leaf_hashes: [],
-          path: "m/1'/0'/1/0",
+          path: "m/86'/1'/0'/1/0",
           public_key: 'fe349064c98d6e2a853fa3c9b12bd8b304a19c195c60efa7ee2393046d3fa232',
         }],
         taproot_internal_key: 'fe349064c98d6e2a853fa3c9b12bd8b304a19c195c60efa7ee2393046d3fa232',
@@ -316,7 +316,7 @@ const tests = {
         bip32_derivation: {
           fingerprint: '772b2da7',
           leaf_hashes: [],
-          path: "m/1'/0'/0/5",
+          path: "m/86'/1'/0'/0/5",
           public_key: '1124da7aec92ccd06c954562647f437b138b95721a84be2bf2276bbddab3e671',
         },
       }],
@@ -370,7 +370,7 @@ const tests = {
             leaf_hashes: [
               'cd970e15f53fc0c82f950fd560ffa919b76172be017368a89913af074f400b09'
             ],
-            path: "m/1'/2'/0/0",
+            path: "m/86'/1'/2'/0/0",
             public_key: '2cb13ac68248de806aa6a3659cf3c03eb6821d09c8114a4e868febde865bb6d2',
           },
           {
@@ -378,7 +378,7 @@ const tests = {
             leaf_hashes: [
               '115f2e490af7cc45c4f78511f36057ce5c5a5c56325a29fb44dfc203f356e1f8'
             ],
-            path: "m/1'/1'/0/0",
+            path: "m/86'/1'/1'/0/0",
             public_key: '4320b0bf16f011b53ea7be615924aa7f27e5d29ad20ea1155d848676c3bad1b2',
           },
           {
@@ -392,7 +392,7 @@ const tests = {
             leaf_hashes: [
               '6f7d62059e9497a1a4a267569d9876da60101aff38e3529b9b939ce7f91ae970'
             ],
-            path: "m/1'/3'/0/0",
+            path: "m/86'/1'/3'/0/0",
             public_key: 'fa0f7a3cef3b1d0c0a6ce7d26e17ada0b2e5c92d19efad48b41859cb8a451ca9',
           },
         ],
@@ -404,7 +404,7 @@ const tests = {
         bip32_derivation: {
           fingerprint: '772b2da7',
           leaf_hashes: [],
-          path: "m/1'/0'/0/5",
+          path: "m/86'/1'/0'/0/5",
           public_key: '1124da7aec92ccd06c954562647f437b138b95721a84be2bf2276bbddab3e671',
         },
       }],
@@ -480,7 +480,7 @@ const tests = {
         bip32_derivations: [{
           fingerprint: '772b2da7',
           leaf_hashes: [],
-          path: "m/1'/0'/1/0",
+          path: "m/86'/1'/0'/1/0",
           public_key: 'fe349064c98d6e2a853fa3c9b12bd8b304a19c195c60efa7ee2393046d3fa232',
         }],
         taproot_internal_key: 'fe349064c98d6e2a853fa3c9b12bd8b304a19c195c60efa7ee2393046d3fa232',
@@ -509,7 +509,7 @@ const tests = {
           leaf_hashes: [
             '29a5b4915090162d759afd3fe0f93fa3326056d0b4088cb933cae7826cb8d82c'
           ],
-          path: "m/1'/3'/0/3",
+          path: "m/86'/1'/3'/0/3",
           public_key: '736e572900fe1252589a2143c8f3c79f71a0412d2353af755e9701c782694a02'
         },
       }],
@@ -583,7 +583,7 @@ const tests = {
             leaf_hashes: [
               'cd970e15f53fc0c82f950fd560ffa919b76172be017368a89913af074f400b09'
             ],
-            path: "m/1'/2'/0/0",
+            path: "m/86'/1'/2'/0/0",
             public_key: '2cb13ac68248de806aa6a3659cf3c03eb6821d09c8114a4e868febde865bb6d2',
           },
           {
@@ -591,7 +591,7 @@ const tests = {
             leaf_hashes: [
               '115f2e490af7cc45c4f78511f36057ce5c5a5c56325a29fb44dfc203f356e1f8'
             ],
-            path: "m/1'/1'/0/0",
+            path: "m/86'/1'/1'/0/0",
             public_key: '4320b0bf16f011b53ea7be615924aa7f27e5d29ad20ea1155d848676c3bad1b2',
           },
           {
@@ -605,7 +605,7 @@ const tests = {
             leaf_hashes: [
               '6f7d62059e9497a1a4a267569d9876da60101aff38e3529b9b939ce7f91ae970'
             ],
-            path: "m/1'/3'/0/0",
+            path: "m/86'/1'/3'/0/0",
             public_key: 'fa0f7a3cef3b1d0c0a6ce7d26e17ada0b2e5c92d19efad48b41859cb8a451ca9',
           }
         ],
@@ -617,7 +617,7 @@ const tests = {
         bip32_derivation: {
           fingerprint: '772b2da7',
           leaf_hashes: [],
-          path: "m/1'/0'/0/5",
+          path: "m/86'/1'/0'/0/5",
           public_key: '1124da7aec92ccd06c954562647f437b138b95721a84be2bf2276bbddab3e671',
         },
       }],

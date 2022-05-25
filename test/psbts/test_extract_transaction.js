@@ -1,4 +1,4 @@
-const {test} = require('tap');
+const {test} = require('@alexbosworth/tap');
 const tinysecp = require('tiny-secp256k1');
 
 const {decodePsbt} = require('./../../');

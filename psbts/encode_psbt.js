@@ -1,4 +1,4 @@
-const varuint = require('varuint-bitcoin')
+const varuint = require('varuint-bitcoin');
 
 const {terminatorByte} = require('./constants');
 const types = require('./types');

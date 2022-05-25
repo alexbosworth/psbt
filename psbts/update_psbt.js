@@ -85,7 +85,7 @@ module.exports = args => {
   const decoded = decodePsbt({ecp: args.ecp, psbt: args.psbt});
   const inputs = [];
   const outputs = [];
-  const pairs = []
+  const pairs = [];
   const pubKeyHashes = {};
   const pubKeys = {};
   const redeemScripts = args.redeem_scripts || [];

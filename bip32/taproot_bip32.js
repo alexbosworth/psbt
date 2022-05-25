@@ -52,9 +52,6 @@ module.exports = ({type, value}) => {
 
   const fingerprint = slice(val, sumOf(cursor), sizeFingerprint);
 
-  // Finished reading the fingerprint
-  cursor.push(sizeFingerprint);
-
   const derivation = val.subarray(sumOf(cursor));
 
   return {

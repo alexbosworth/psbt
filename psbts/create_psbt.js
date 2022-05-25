@@ -10,6 +10,18 @@ const type = Buffer.from(types.global.unsigned_tx, 'hex');
 /** Create a PSBT
 
   {
+    [inputs]: [{
+      [bip32_derivations]: [{
+        fingerprint: <Public Key Fingerprint Hex String>
+        [leaf_hashes]: <Taproot Leaf Hash Hex String>
+        path: <BIP 32 Child / Hardened Child / Index Derivation Path String>
+        public_key: <Public Key Hex String>
+      }]
+      witness_utxo: {
+        script_pub: <Output Script Public Key Hex String>
+        tokens: <Witness Spend Tokens Number>
+      }
+    }]
     outputs: [{
       script: <Output ScriptPub Hex String>
       tokens: <Sending Tokens Number>
@@ -28,7 +40,7 @@ const type = Buffer.from(types.global.unsigned_tx, 'hex');
     psbt: <Partially Signed Bitcoin Transaction Hex Encoded String>
   }
 */
-module.exports = ({outputs, timelock, utxos, version}) => {
+module.exports = ({inputs, outputs, timelock, utxos, version}) => {
   if (!isArray(outputs)) {
     throw new Error('ExpectedTransactionOutputsForNewPsbt');
   }

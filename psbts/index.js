@@ -2,6 +2,7 @@ const combinePsbts = require('./combine_psbts');
 const createPsbt = require('./create_psbt');
 const decodePsbt = require('./decode_psbt');
 const encodePsbt = require('./encode_psbt');
+const extendPsbt = require('./extend_psbt');
 const extractTransaction = require('./extract_transaction');
 const finalizePsbt = require('./finalize_psbt');
 const signPsbt = require('./sign_psbt');
@@ -13,6 +14,7 @@ module.exports = {
   createPsbt,
   decodePsbt,
   encodePsbt,
+  extendPsbt,
   extractTransaction,
   finalizePsbt,
   signPsbt,

@@ -16,7 +16,7 @@ const {floor} = Math;
   }
 */
 module.exports = ({derivation}) => {
-  if (!derivation.length) {
+  if (derivation.length === fingerprintByteLength) {
     return {};
   }
 
