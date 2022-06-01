@@ -215,7 +215,7 @@ const tests = {
           public_key: '620763e2113dc4d27d65153d6b889d4e5e0e3ee990e53c75d0ca38f89c45328a'
         }],
       }],
-      outputs: [],
+      outputs: [{}, {}],
       pairs: [
         {
           type: '00',

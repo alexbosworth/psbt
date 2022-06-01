@@ -1,5 +1,12 @@
 # Versions
 
+## 2.3.0
+
+- `decodePsbt`: Add support for incomplete inputs and output sets
+- `extendPsbt`: Add `final_scriptsig`, `final_scriptwitness`,
+    `non_witness_utxo`, `partial_sig`, `redeem_script`, `witness_script` to
+    supported input types.
+
 ## 2.2.0
 
 - `decodePsbt`: Fix incorrect decoding of bip32 derivation paths

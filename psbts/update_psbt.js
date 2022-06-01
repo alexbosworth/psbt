@@ -100,6 +100,10 @@ module.exports = args => {
 
   const tx = Transaction.fromHex(decoded.unsigned_transaction);
 
+  decoded.inputs = decoded.inputs.map(input => {
+    return !Object.keys(input).length ? null : input;
+  });
+
   // The unsigned transaction is the top pair
   pairs.push({
     type: Buffer.from(types.global.unsigned_tx, 'hex'),
@@ -189,6 +193,7 @@ module.exports = args => {
   // Iterate through transaction inputs and fill in values
   tx.ins.forEach((input, vin) => {
     const utxo = decoded.inputs[vin] || {};
+
     const spendsTxId = input.hash.reverse().toString('hex');
 
     utxo.sighash_type = sighashes[`${spendsTxId}:${input.index}`];

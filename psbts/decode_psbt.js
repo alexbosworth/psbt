@@ -16,6 +16,7 @@ const {Transaction} = require('./../tokens');
 const types = require('./types');
 
 const bufferAsHex = buffer => buffer.toString('hex');
+const countGlobal = 1;
 const {decompile} = script;
 const globalSeparatorCode = parseInt(types.global.separator, 16);
 const {hash160} = crypto;
@@ -111,6 +112,10 @@ const xOnlyPublicKeyByteLength = 32;
   }
 */
 module.exports = ({ecp, psbt}) => {
+  if (!ecp) {
+    throw new Error('ExpectedEcpairLibraryToDecodePartiallySignedBitcoinTx');
+  }
+
   if (!psbt) {
     throw new Error('ExpectedHexSerializedPartiallySignedBitcoinTransaction');
   }
@@ -121,10 +126,12 @@ module.exports = ({ecp, psbt}) => {
   const foundOutputs = [];
   const globalKeys = {};
   let input;
+  let inputIndex;
   let inputKeys = {};
   let isGlobal = true;
   let offset = 0;
   let output;
+  let outputIndex;
   let outputKeys = {};
   let terminatorsExpected;
   let terminatorsFound = 0;
@@ -135,6 +142,7 @@ module.exports = ({ecp, psbt}) => {
 
     return buffer.slice(offset - bytesCount, offset);
   };
+
   const readCompactVarInt = () => {
     const n = varuint.decode(buffer, offset);
 
@@ -204,17 +212,19 @@ module.exports = ({ecp, psbt}) => {
         delete input.redeem_script_hash;
         delete input.witness_script_hash;
 
-        decoded.inputs.push(input);
+        decoded.inputs[inputIndex] = input;
 
         input = null;
+        inputIndex = null;
         inputKeys = {};
       }
 
       // Output detected and finished loading its values
       if (!!output) {
-        decoded.outputs.push(output);
+        decoded.outputs[outputIndex] = output;
 
         output = null;
+        outputIndex = null;
         outputKeys = {};
       }
 
@@ -240,6 +250,9 @@ module.exports = ({ecp, psbt}) => {
         }
 
         const tx = Transaction.fromBuffer(value);
+
+        decoded.inputs = Array(tx.ins.length).fill({});
+        decoded.outputs = Array(tx.outs.length).fill({});
         decoded.unsigned_transaction = value.toString('hex');
 
         terminatorsExpected = tx.ins.length + tx.outs.length + [tx].length;
@@ -285,6 +298,7 @@ module.exports = ({ecp, psbt}) => {
       if (!input) {
         foundInputs.pop();
         input = {};
+        inputIndex = terminatorsFound - [globalKeys].length;
       }
 
       if (!!inputKeys[keyType.toString('hex')]) {
@@ -529,6 +543,7 @@ module.exports = ({ecp, psbt}) => {
       if (!output) {
         foundOutputs.pop();
         output = {};
+        outputIndex = terminatorsFound - countGlobal - decoded.inputs.length;
       }
 
       if (!!outputKeys[keyType.toString('hex')]) {

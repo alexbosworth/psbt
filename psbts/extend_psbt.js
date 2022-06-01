@@ -3,6 +3,7 @@ const {encode} = require('varuint-bitcoin');
 
 const decodePsbt = require('./decode_psbt');
 const encodePsbt = require('./encode_psbt');
+const {encodeSignature} = require('./../signatures');
 const {encodeDerivations} = require('./../bip32');
 const {Transaction} = require('./../tokens');
 const types = require('./types');
@@ -24,7 +25,17 @@ const tokensAsBuffer = n => new BN(n, 10).toArrayLike(Buffer, 'le', 8);
         path: <BIP 32 Child / Hardened Child / Index Derivation Path String>
         public_key: <Public Key Hex String>
       }]
+      [final_scriptsig]: <Final ScriptSig Hex String>
+      [final_scriptwitness]: <Final Script Witness Hex String>
+      [non_witness_utxo]: <Non-Witness Hex Encoded Transaction String>
+      [partial_sig]: [{
+        hash_type: <Signature Hash Type Number>
+        public_key: <Public Key Hex String>
+        signature: <ECDSA Signature Hex String>
+      }]
+      [redeem_script]: <Hex Encoded Redeem Script String>
       [sighash_type]: <Sighash Type Number>
+      [witness_script]: <Witness Script Hex String>
       [witness_utxo]: {
         script_pub: <UTXO ScriptPub Hex String>
         tokens: <Tokens Number>
@@ -91,11 +102,64 @@ module.exports = args => {
       });
     }
 
+    // The Finalized scriptSig contains a fully constructed scriptSig
+    if (!!input.final_scriptsig) {
+      pairs.push({
+        type: hexAsBuffer(types.input.final_scriptsig),
+        value: hexAsBuffer(input.final_scriptsig),
+      });
+    }
+
+    // The Finalized scriptWitness contains a fully constructed scriptWitness.
+    if (!!input.final_scriptwitness) {
+      pairs.push({
+        type: hexAsBuffer(types.input.final_scriptwitness),
+        value: hexAsBuffer(input.final_scriptwitness),
+      });
+    }
+
+    // The transaction in network serialization format the current input spends
+    if (!!input.non_witness_utxo) {
+      pairs.push({
+        type: hexAsBuffer(types.input.non_witness_utxo),
+        value: hexAsBuffer(input.non_witness_utxo),
+      });
+    }
+
+    // The signature as would be pushed to the stack from a scriptSig/witness
+    if (!!input.partial_sig) {
+      const partialSig = input.partial_sig;
+
+      return pairs.push({
+        type: hexAsBuffer(types.input.partial_sig + partialSig.public_key),
+        value: encodeSignature({
+          flag: partialSig.hash_type,
+          signature: partialSig.signature,
+        }),
+      });
+    }
+
+    // The redeemScript for this input if it has one
+    if (!!input.redeem_script) {
+      pairs.push({
+        type: hexAsBuffer(types.input.redeem_script),
+        value: hexAsBuffer(input.redeem_script),
+      });
+    }
+
     // Sighash used to sign this input
     if (input.sighash_type !== undefined) {
       pairs.push({
         type: hexAsBuffer(types.input.sighash_type),
         value: sighashAsBuffer(input.sighash_type),
+      });
+    }
+
+    // The witnessScript for this input if it has one.
+    if (!!input.witness_script) {
+      pairs.push({
+        type: hexAsBuffer(types.input.witness_script),
+        value: hexAsBuffer(input.witness_script),
       });
     }
 
