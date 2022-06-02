@@ -1,5 +1,9 @@
 # Versions
 
+## 2.4.0
+
+- `unextractTransaction`: Add method to reconstitute a finalized psbt from a tx
+
 ## 2.3.0
 
 - `decodePsbt`: Add support for incomplete inputs and output sets

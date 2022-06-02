@@ -18,6 +18,7 @@ const tokensAsBuffer = n => new BN(n, 10).toArrayLike(Buffer, 'le', 8);
 /** Extend a created PSBT template with additional fields
 
   {
+    ecp: <ECPair Object>
     inputs: [{
       [bip32_derivations]: [{
         fingerprint: <Public Key Fingerprint Hex String>
@@ -41,7 +42,6 @@ const tokensAsBuffer = n => new BN(n, 10).toArrayLike(Buffer, 'le', 8);
         tokens: <Tokens Number>
       }
     }]
-    ecp: <ECPair Object>
     psbt: <Template BIP 174 Encoded PSBT String>
   }
 
