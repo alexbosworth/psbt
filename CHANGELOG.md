@@ -1,5 +1,10 @@
 # Versions
 
+## 2.5.0
+
+- `combinePsbts`: Add support for combining p2tr key spend input PSBTs
+- `updatePsbt`: Add support for `taproot_inputs` when using key spend signature
+
 ## 2.4.0
 
 - `unextractTransaction`: Add method to reconstitute a finalized psbt from a tx

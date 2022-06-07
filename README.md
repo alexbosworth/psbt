@@ -263,6 +263,10 @@ Update a PSBT
         public_key: <BIP 32 Public Key String>
         signature: <Signature Hex String>
       }]
+      [taproot_inputs]: [{
+        vin: <Input Index Number>
+        [key_spend_sig]: <Taproot Key Spend Signature Hex String>
+      }]
       [transactions]: [<Hex Encoding Transaction String>]
       [witness_scripts]: [<Witness Script String>]
     }

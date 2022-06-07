@@ -24,6 +24,7 @@ module.exports = ({ecp, psbts}) => {
   const outputAttributes = [];
   const [referencePsbt] = psbts;
   const signatures = [];
+  const taprootInputs = [];
   let tx;
 
   psbts.map(psbt => decodePsbt({ecp, psbt})).forEach(decoded => {
@@ -46,6 +47,13 @@ module.exports = ({ecp, psbts}) => {
 
         return inputAttributes[vin][type] = value;
       });
+
+      if (!!input.taproot_key_spend_sig) {
+        taprootInputs.push({
+          vin,
+          key_spend_sig: input.taproot_key_spend_sig,
+        });
+      }
 
       return (input.partial_sig || []).forEach(partial => {
         return signatures.push({
@@ -97,6 +105,7 @@ module.exports = ({ecp, psbts}) => {
       signatures,
       additional_attributes: additionalAttributes,
       psbt: referencePsbt,
+      taproot_inputs: taprootInputs,
     });
   } catch (err) {
     throw err;

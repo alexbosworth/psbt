@@ -59,6 +59,10 @@ const txOuts = tx => Transaction.fromHex(tx).outs;
       public_key: <BIP 32 Public Key String>
       signature: <Signature Hex String>
     }]
+    [taproot_inputs]: [{
+      vin: <Input Index Number>
+      [key_spend_sig]: <Taproot Key Spend Signature Hex String>
+    }]
     [transactions]: [<Hex Encoding Transaction String>]
     [witness_scripts]: [<Witness Script String>]
   }
@@ -373,6 +377,9 @@ module.exports = args => {
   tx.ins.forEach((txIn, vin) => {
     const n = inputs[vin] || decoded.inputs[vin];
 
+    // Look for a taproot input
+    const taprootInput = (args.taproot_inputs || []).find(n => n.vin === vin);
+
     // Legacy UTXO being spent by this input
     if (!!n.non_witness_utxo) {
       pairs.push({
@@ -404,6 +411,14 @@ module.exports = args => {
           ]),
           value: Buffer.from(n.signature, 'hex'),
         });
+      });
+    }
+
+    // Pay to Taproot partial signature for key spend
+    if (!args.is_final && !!taprootInput && taprootInput.key_spend_sig) {
+      pairs.push({
+        type: Buffer.from(types.input.tap_key_sig, 'hex'),
+        value: Buffer.from(taprootInput.key_spend_sig, 'hex'),
       });
     }
 
@@ -452,12 +467,33 @@ module.exports = args => {
       });
     }
 
-    if (!!args.is_final && (!n.partial_sig || !n.partial_sig.length)) {
+    const hasPartialSig = !!n.partial_sig && !!n.partial_sig.length;
+    const hasTaprootSig = !!n.taproot_key_spend_sig;
+
+    // Make sure that there is a signature when the input is finalized
+    if (!!args.is_final && !hasPartialSig && !hasTaprootSig) {
       throw new Error('ExpectedSignaturesForFinalizedTransaction');
     }
 
+    // Final scriptwitness for taproot input
+    if (!!args.is_final && !!n.taproot_key_spend_sig) {
+      const components = [pushData({
+        data: Buffer.from(n.taproot_key_spend_sig, 'hex'),
+      })];
+
+      const value = Buffer.concat([
+        encode(components.length),
+        Buffer.concat(components),
+      ]);
+
+      pairs.push({
+        value,
+        type: Buffer.from(types.input.final_scriptwitness, 'hex'),
+      });
+    }
+
     // Final scriptsig for this input
-    if (!!args.is_final && !!n.partial_sig.length) {
+    if (!!args.is_final && !!n.partial_sig && !!n.partial_sig.length) {
       const isWitness = !!n.witness_script && !n.witness_utxo;
       const redeem = n.redeem_script;
       const [signature] = n.partial_sig;
