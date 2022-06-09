@@ -1,5 +1,9 @@
 # Versions
 
+## 2.6.0
+
+- `unextractTransaction`: Add support for witness-only `utxos` references
+
 ## 2.5.0
 
 - `combinePsbts`: Add support for combining p2tr key spend input PSBTs

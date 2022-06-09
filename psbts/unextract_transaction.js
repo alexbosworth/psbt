@@ -19,9 +19,14 @@ const isTaproot = n => n.length === 68 && parseInt(n.slice(0, 2), 16) >= 1;
     ecp: <ECPair Object>
     spending: [<Spending Transaction Hex String>]
     transaction: <Hex Encoded Transaction String>
+    [utxos]: [{
+      script_pub: <Output Script Hex String>
+      tokens: <Output Tokens Number>
+      vin: <Input Index Number>
+    }]
   }
 */
-module.exports = ({ecp, spending, transaction}) => {
+module.exports = ({ecp, spending, transaction, utxos}) => {
   if (!ecp) {
     throw new Error('ExpectedEcpairLibraryToUnextractTransaction');
   }
@@ -42,23 +47,22 @@ module.exports = ({ecp, spending, transaction}) => {
     tokens: value,
   }));
 
-  const utxos = tx.ins.map(({hash, index, sequence}) => ({
-    sequence,
-    id: hashAsTransactionId(hash),
-    vout: index,
-  }));
-
   const {psbt} = createPsbt({
     outputs,
-    utxos,
-    version: tx.version,
     timelock: tx.locktime,
+    utxos: tx.ins.map(({hash, index, sequence}) => ({
+      sequence,
+      id: hashAsTransactionId(hash),
+      vout: index,
+    })),
+    version: tx.version,
   });
 
-  const inputs = tx.ins.map(({hash, index, script, witness}) => {
+  const inputs = tx.ins.map(({hash, index, script, witness}, vin) => {
+    const reference = (utxos || []).find(n => n.vin === vin);
     const spend = spendingTxs.find(n => n.getId() === bufferAsHex(hash));
 
-    if (!spend) {
+    if (!spend && !reference) {
       throw new Error('ExpectedSpendingTransactionsForAllInputs');
     }
 
@@ -66,7 +70,7 @@ module.exports = ({ecp, spending, transaction}) => {
       .concat(encode(witness.length))
       .concat(witness.map(data => pushData({data}))));
 
-    const utxo = {
+    const utxo = reference || {
       script_pub: bufferAsHex(spend.outs[index].script),
       tokens: spend.outs[index].value,
     };

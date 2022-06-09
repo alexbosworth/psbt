@@ -54,14 +54,14 @@ const txOuts = tx => Transaction.fromHex(tx).outs;
       vout: <Spending Output Index Number>
     }]
     [signatures]: [{
-      vin: <Signature Input Index Number>
       hash_type: <Signature Hash Type Number>
       public_key: <BIP 32 Public Key String>
       signature: <Signature Hex String>
+      vin: <Signature Input Index Number>
     }]
     [taproot_inputs]: [{
-      vin: <Input Index Number>
       [key_spend_sig]: <Taproot Key Spend Signature Hex String>
+      vin: <Input Index Number>
     }]
     [transactions]: [<Hex Encoding Transaction String>]
     [witness_scripts]: [<Witness Script String>]
