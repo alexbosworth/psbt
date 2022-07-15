@@ -36,6 +36,7 @@ const tokensAsBuffer = n => new BN(n, 10).toArrayLike(Buffer, 'le', 8);
       }]
       [redeem_script]: <Hex Encoded Redeem Script String>
       [sighash_type]: <Sighash Type Number>
+      [taproot_key_spend_sig]: <Taproot Key Spend Signature Hex String>
       [witness_script]: <Witness Script Hex String>
       [witness_utxo]: {
         script_pub: <UTXO ScriptPub Hex String>
@@ -127,15 +128,15 @@ module.exports = args => {
     }
 
     // The signature as would be pushed to the stack from a scriptSig/witness
-    if (!!input.partial_sig) {
-      const partialSig = input.partial_sig;
-
-      return pairs.push({
-        type: hexAsBuffer(types.input.partial_sig + partialSig.public_key),
-        value: encodeSignature({
-          flag: partialSig.hash_type,
-          signature: partialSig.signature,
-        }),
+    if (isArray(input.partial_sig)) {
+      input.partial_sig.forEach(partialSig => {
+        return pairs.push({
+          type: hexAsBuffer(types.input.partial_sig + partialSig.public_key),
+          value: encodeSignature({
+            flag: partialSig.hash_type,
+            signature: partialSig.signature,
+          }),
+        });
       });
     }
 
@@ -152,6 +153,14 @@ module.exports = args => {
       pairs.push({
         type: hexAsBuffer(types.input.sighash_type),
         value: sighashAsBuffer(input.sighash_type),
+      });
+    }
+
+    // The taproot key signature
+    if (!!input.taproot_key_spend_sig) {
+      pairs.push({
+        value: hexAsBuffer(input.taproot_key_spend_sig),
+        type: hexAsBuffer(types.input.tap_key_sig),
       });
     }
 

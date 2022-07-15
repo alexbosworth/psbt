@@ -1,5 +1,10 @@
 # Versions
 
+## 2.7.0
+
+- `extendPsbt`: Add support for `taproot_key_spend_sig`
+- `extendPsbt`: Fix `partial_sig` argument to take an array of partial sigs
+
 ## 2.6.0
 
 - `unextractTransaction`: Add support for witness-only `utxos` references

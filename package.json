@@ -29,5 +29,5 @@
   "scripts": {
     "test": "tap --branches=1 --functions=1 --lines=1 --statements=1 test/psbts/*.js"
   },
-  "version": "2.6.0"
+  "version": "2.7.0"
 }

@@ -14,12 +14,12 @@ const type = Buffer.from(types.global.unsigned_tx, 'hex');
       script: <Output ScriptPub Hex String>
       tokens: <Sending Tokens Number>
     }]
+    [timelock]: <Set Lock Time on Transaction To Number>
     utxos: [{
       id: <Transaction Id Hex String>
       [sequence]: <Sequence Number>
       vout: <Output Index Number>
     }]
-    [timelock]: <Set Lock Time on Transaction To Number>
     [version]: <Transaction Version Number>
   }
 
