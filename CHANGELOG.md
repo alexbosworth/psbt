@@ -1,5 +1,9 @@
 # Versions
 
+## 2.7.1
+
+- Add support for node.js 18+
+
 ## 2.7.0
 
 - `extendPsbt`: Add support for `taproot_key_spend_sig`

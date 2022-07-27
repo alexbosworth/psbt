@@ -3,7 +3,7 @@
   "dependencies": {
     "bip66": "1.1.5",
     "bitcoin-ops": "1.4.1",
-    "bitcoinjs-lib": "6.0.1",
+    "bitcoinjs-lib": "6.0.2",
     "bn.js": "5.2.1",
     "pushdata-bitcoin": "1.0.1",
     "varuint-bitcoin": "1.1.2"
@@ -29,5 +29,5 @@
   "scripts": {
     "test": "tap --branches=1 --functions=1 --lines=1 --statements=1 test/psbts/*.js"
   },
-  "version": "2.7.0"
+  "version": "2.7.1"
 }
