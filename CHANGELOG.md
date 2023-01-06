@@ -1,6 +1,6 @@
 # Versions
 
-## 2.7.1
+## 2.7.2
 
 - Add support for node.js 18+
 
