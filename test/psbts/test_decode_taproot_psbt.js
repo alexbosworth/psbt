@@ -1,4 +1,7 @@
-const {test} = require('@alexbosworth/tap');
+const strictSame = require('node:assert').strict.deepStrictEqual;
+const test = require('node:test');
+const {throws} = require('node:assert').strict;
+
 const tinysecp = require('tiny-secp256k1');
 
 const {decodePsbt} = require('./../../');
@@ -694,19 +697,19 @@ const tests = {
 
 // Run the tests
 Object.keys(tests).map(t => tests[t]).forEach(({args, err, msg, result}) => {
-  return test(msg, async ({end, strictSame, throws}) => {
+  return test(msg, async () => {
     args.ecp = (await import('ecpair')).ECPairFactory(tinysecp);
 
     if (!!err) {
       throws(() => decodePsbt(args), new Error(err), 'Got expected error');
 
-      return end();
+      return;
     }
 
     const res = decodePsbt(args);
 
     strictSame(res, result, 'Got expected result');
 
-    return end();
+    return;
   });
 });

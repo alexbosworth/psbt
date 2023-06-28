@@ -1,4 +1,7 @@
-const {test} = require('@alexbosworth/tap');
+const {equal} = require('node:assert').strict;
+const test = require('node:test');
+const {throws} = require('node:assert').strict;
+
 const tinysecp = require('tiny-secp256k1');
 
 const {extractTransaction} = require('./../../');
@@ -109,7 +112,7 @@ const tests = [
 
 // Run the tests
 tests.forEach(({args, err, expected, description}) => {
-  return test(description, async ({end, equal}) => {
+  return test(description, async () => {
     const ecp = (await import('ecpair')).ECPairFactory(tinysecp);
 
     args.ecp = ecp;
@@ -122,6 +125,6 @@ tests.forEach(({args, err, expected, description}) => {
 
     equal(extracted.transaction, args.transaction, 'TX can be extracted');
 
-    return end();
+    return;
   });
 });

@@ -1,4 +1,6 @@
-const {test} = require('@alexbosworth/tap');
+const {equal} = require('node:assert').strict;
+const test = require('node:test');
+const {throws} = require('node:assert').strict;
 
 const {createPsbt} = require('./../../');
 
@@ -36,7 +38,7 @@ const tests = {
 
 // Run the tests
 Object.keys(tests).map(t => tests[t]).forEach(({args, err, msg, result}) => {
-  return test(msg, ({end, equal, throws}) => {
+  return test(msg, (t, end) => {
     if (!!err) {
       throws(() => encodePsbt(args), new Error(err));
 

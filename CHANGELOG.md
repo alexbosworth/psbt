@@ -1,5 +1,9 @@
 # Versions
 
+## 3.0.0
+
+- Require node.js 16 or higher
+
 ## 2.7.2
 
 - Add support for node.js 18+
