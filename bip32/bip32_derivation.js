@@ -32,6 +32,6 @@ module.exports = ({derivation, ecp, key}) => {
   return {
     path: derivationAsPath({derivation}).path,
     fingerprint: derivation.slice(0, fingerprintByteLength).toString('hex'),
-    public_key: childKey.publicKey.toString('hex'),
+    public_key: Buffer.from(childKey.publicKey).toString('hex'),
   };
 };

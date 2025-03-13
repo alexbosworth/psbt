@@ -8,6 +8,7 @@ const {script} = require('./../tokens');
 const {Transaction} = require('./../tokens');
 const updatePsbt = require('./update_psbt');
 
+const asBuffer = n => Buffer.from(n);
 const {decompile} = script;
 const defaultSighashType = Transaction.SIGHASH_ALL;
 const {hash160} = crypto;
@@ -39,8 +40,8 @@ module.exports = args => {
   args.signing_keys.map(k => {
     const key = args.ecp.fromWIF(k, network);
 
-    keys[key.publicKey.toString('hex')] = key;
-    pkHashes[hash160(key.publicKey).toString('hex')] = key;
+    keys[asBuffer(key.publicKey).toString('hex')] = key;
+    pkHashes[hash160(asBuffer(key.publicKey)).toString('hex')] = key;
 
     return;
   });
@@ -77,13 +78,13 @@ module.exports = args => {
 
           const sig = encodeSignature({
             flag: input.sighash_type || defaultSighashType,
-            signature: signingKey.sign(hashToSign).toString('hex'),
+            signature: asBuffer(signingKey.sign(hashToSign)).toString('hex'),
           });
 
           return signatures.push({
             vin,
             hash_type: input.sighash_type || defaultSighashType,
-            public_key: signingKey.publicKey.toString('hex'),
+            public_key: asBuffer(signingKey.publicKey).toString('hex'),
             signature: sig.toString('hex'),
           });
         });
@@ -166,13 +167,13 @@ module.exports = args => {
 
           const sig = encodeSignature({
             flag: sighashType,
-            signature: signingKey.sign(hashToSign).toString('hex'),
+            signature: asBuffer(signingKey.sign(hashToSign)).toString('hex'),
           });
 
           return signatures.push({
             vin,
             hash_type: sighashType,
-            public_key: signingKey.publicKey.toString('hex'),
+            public_key: asBuffer(signingKey.publicKey).toString('hex'),
             signature: sig.toString('hex'),
           });
         });
@@ -209,7 +210,7 @@ module.exports = args => {
 
       const signature = encodeSignature({
         flag: sighashType,
-        signature: signingKey.sign(hashToSign).toString('hex')
+        signature: asBuffer(signingKey.sign(hashToSign)).toString('hex'),
       });
 
       return signatures.push({

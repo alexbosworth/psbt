@@ -1,5 +1,9 @@
 # Versions
 
+## 4.0.0
+
+- Require node.js 18 or higher
+
 ## 3.0.0
 
 - Require node.js 16 or higher

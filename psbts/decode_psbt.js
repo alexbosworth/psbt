@@ -397,7 +397,7 @@ module.exports = ({ecp, psbt}) => {
 
         input.partial_sig.push({
           hash_type: signature.hash_type,
-          public_key: sigPubKey.publicKey.toString('hex'),
+          public_key: Buffer.from(sigPubKey.publicKey).toString('hex'),
           signature: signature.signature.toString('hex'),
         });
         break;
