@@ -4,14 +4,14 @@
     "bip66": "2.0.0",
     "bitcoin-ops": "1.4.1",
     "bitcoinjs-lib": "6.1.7",
-    "bn.js": "5.2.1",
+    "bn.js": "5.2.3",
     "pushdata-bitcoin": "1.0.1",
     "varuint-bitcoin": "1.1.2"
   },
   "description": "Methods for working with BIP 174 PSBTs",
   "devDependencies": {
-    "ecpair": "3.0.0",
-    "tiny-secp256k1": "2.2.3"
+    "ecpair": "2.1.0",
+    "tiny-secp256k1": "2.2.4"
   },
   "directories": {
     "test": "test"
@@ -28,5 +28,5 @@
   "scripts": {
     "test": "npx nyc@17.1.0 node --experimental-test-coverage --test"
   },
-  "version": "4.0.0"
+  "version": "5.0.0"
 }
