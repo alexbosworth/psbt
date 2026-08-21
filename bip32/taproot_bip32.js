@@ -1,9 +1,8 @@
-const varuint = require('varuint-bitcoin')
+const {compactIntAsNumber} = require('@alexbosworth/blockchain');
 
 const derivationAsPath = require('./derivation_as_path');
 
 const bufferAsHex = buffer => buffer.toString('hex');
-const chunk = (a, l)=>[...Array(Math.ceil(a.length/l))].map(_=>a.splice(0,l));
 const expectedTypeHexLength = 33 * 2;
 const hexAsBuffer = hex => Buffer.from(hex, 'hex');
 const sizeFingerprint = 4;
@@ -38,17 +37,17 @@ module.exports = ({type, value}) => {
   const cursor = [];
   const val = hexAsBuffer(value);
 
-  const leafHashesCount = varuint.decode(val);
+  const leafHashesCount = compactIntAsNumber({encoded: val});
 
   // Finished reading the count of leaf hashes
-  cursor.push(varuint.decode.bytes);
+  cursor.push(leafHashesCount.bytes);
 
-  const leafHashes = [...Array(leafHashesCount)].map((_, i) => {
+  const leafHashes = [...Array(leafHashesCount.number)].map((_, i) => {
     return bufferAsHex(slice(val, sumOf(cursor) + (i * sizeHash), sizeHash));
   });
 
   // Finished reading the leaf hashes
-  cursor.push(leafHashesCount * sizeHash);
+  cursor.push(leafHashesCount.number * sizeHash);
 
   const fingerprint = slice(val, sumOf(cursor), sizeFingerprint);
 

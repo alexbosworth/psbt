@@ -1,18 +1,18 @@
+const {compactIntAsNumber} = require('@alexbosworth/blockchain');
 const BN = require('bn.js');
-const varuint = require('varuint-bitcoin');
 
 const {bip32Derivation} = require('./../bip32');
 const {checkNonWitnessUtxo} = require('./../utxos');
 const {checkWitnessUtxo} = require('./../utxos');
-const {crypto} = require('./../tokens');
+const {crypto} = require('bitcoinjs-lib');
 const {decodeSignature} = require('./../signatures');
 const {keyCodeByteLength} = require('./constants');
 const parseTaprootTree = require('./parse_taproot_tree');
-const {script} = require('./../tokens');
+const {script} = require('bitcoinjs-lib');
 const {sigHashByteLength} = require('./constants');
 const {taprootBip32} = require('./../bip32');
 const {tokensByteLength} = require('./constants');
-const {Transaction} = require('./../tokens');
+const {Transaction} = require('bitcoinjs-lib');
 const types = require('./types');
 
 const bufferAsHex = buffer => buffer.toString('hex');
@@ -144,11 +144,11 @@ module.exports = ({ecp, psbt}) => {
   };
 
   const readCompactVarInt = () => {
-    const n = varuint.decode(buffer, offset);
+    const n = compactIntAsNumber({encoded: buffer, start: offset});
 
-    offset += varuint.decode.bytes;
+    offset += n.bytes;
 
-    return n;
+    return n.number;
   };
 
   // Start reading - beginning with magic bytes
@@ -345,9 +345,9 @@ module.exports = ({ecp, psbt}) => {
           throw new Error('InvalidScriptWitnessTypeKey');
         }
 
-        const byteLength = varuint.decode(value);
+        const {bytes} = compactIntAsNumber({encoded: value});
 
-        const scriptWitness = value.slice(varuint.decode.bytes);
+        const scriptWitness = value.slice(bytes);
 
         // Check to make sure that the final script witness is valid script
         if (!decompile(scriptWitness)) {
@@ -515,9 +515,12 @@ module.exports = ({ecp, psbt}) => {
           throw new Error('InvalidInputWitnessUtxoTypeKey');
         }
 
-        const scriptPubKeyLen = varuint.decode(value.slice(tokensByteLength));
+        const pubKeyLen = compactIntAsNumber({
+          encoded: value,
+          start: tokensByteLength,
+        });
 
-        const scriptPub = value.slice(tokensByteLength + varuint.decode.bytes);
+        const scriptPub = value.slice(tokensByteLength + pubKeyLen.bytes);
 
         let tokens;
 

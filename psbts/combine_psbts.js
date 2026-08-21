@@ -1,6 +1,5 @@
 const decodePsbt = require('./decode_psbt');
 const {encodeSignature} = require('./../signatures');
-const {script} = require('./../tokens');
 const updatePsbt = require('./update_psbt');
 
 /** Combine multiple PSBTs

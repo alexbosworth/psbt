@@ -1,8 +1,9 @@
-const varuint = require('varuint-bitcoin');
+const {numberAsCompactInt} = require('@alexbosworth/blockchain');
 
 const {terminatorByte} = require('./constants');
 const types = require('./types');
 
+const encode = number => numberAsCompactInt({number}).encoded;
 const globalSeparator = Buffer.from(types.global.separator, 'hex');
 const magicBytes = Buffer.from(types.global.magic);
 const terminator = Buffer.from(terminatorByte, 'hex');
@@ -44,9 +45,9 @@ module.exports = ({pairs}) => {
     }
 
     return Buffer.concat([
-      varuint.encode(type.length),
+      encode(type.length),
       type,
-      varuint.encode(value.length),
+      encode(value.length),
       value,
     ]);
   }));

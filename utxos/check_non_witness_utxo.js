@@ -2,8 +2,8 @@ const {OP_EQUAL} = require('bitcoin-ops');
 const {OP_HASH160} = require('bitcoin-ops');
 
 const {p2shHashByteLength} = require('./constants');
-const {script} = require('./../tokens');
-const {Transaction} = require('./../tokens');
+const {script} = require('bitcoinjs-lib');
+const {Transaction} = require('bitcoinjs-lib');
 
 const {decompile} = script;
 

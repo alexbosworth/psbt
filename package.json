@@ -1,12 +1,12 @@
 {
   "author": "Alex Bosworth",
   "dependencies": {
+    "@alexbosworth/blockchain": "4.5.1",
     "bip66": "2.0.0",
     "bitcoin-ops": "1.4.1",
     "bitcoinjs-lib": "6.1.7",
-    "bn.js": "5.2.3",
-    "pushdata-bitcoin": "1.0.1",
-    "varuint-bitcoin": "1.1.2"
+    "bn.js": "5.2.5",
+    "pushdata-bitcoin": "1.0.1"
   },
   "description": "Methods for working with BIP 174 PSBTs",
   "devDependencies": {
@@ -17,7 +17,7 @@
     "test": "test"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "license": "MIT",
   "name": "psbt",
@@ -26,7 +26,7 @@
     "url": "https://github.com/alexbosworth/psbt.git"
   },
   "scripts": {
-    "test": "npx nyc@17.1.0 node --experimental-test-coverage --test"
+    "test": "node --experimental-test-coverage --test"
   },
-  "version": "5.0.0"
+  "version": "6.0.0"
 }

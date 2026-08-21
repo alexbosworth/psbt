@@ -2,7 +2,7 @@ const {OP_CHECKMULTISIG} = require('bitcoin-ops');
 
 const {maxKeyCount} = require('./constants');
 const {opNumberOffset} = require('./constants');
-const {script} = require('./../tokens');
+const {script} = require('bitcoinjs-lib');
 
 const {decompile} = script;
 

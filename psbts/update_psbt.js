@@ -1,11 +1,11 @@
+const {numberAsCompactInt} = require('@alexbosworth/blockchain');
 const BN = require('bn.js');
-const {encode} = require('varuint-bitcoin');
 const {OP_0} = require('bitcoin-ops');
 const {OP_EQUAL} = require('bitcoin-ops');
 const {OP_HASH160} = require('bitcoin-ops');
 
 const {bip32Path} = require('./../bip32');
-const {crypto} = require('./../tokens');
+const {crypto} = require('bitcoinjs-lib');
 const {decBase} = require('./constants');
 const decodePsbt = require('./decode_psbt');
 const encodePsbt = require('./encode_psbt');
@@ -14,14 +14,15 @@ const {endianness} = require('./constants');
 const {isMultisig} = require('./../script');
 const {opNumberOffset} = require('./constants');
 const {pushData} = require('./../script');
-const {script} = require('./../tokens');
+const {script} = require('bitcoinjs-lib');
 const {sigHashByteLength} = require('./constants');
 const {stackIndexByteLength} = require('./constants');
 const {tokensByteLength} = require('./constants');
-const {Transaction} = require('./../tokens');
+const {Transaction} = require('bitcoinjs-lib');
 const types = require('./types');
 
 const {decompile} = script;
+const encode = number => numberAsCompactInt({number}).encoded;
 const {hash160} = crypto;
 const {isBuffer} = Buffer;
 const isNestedP2wpkhReedeemScript = n => !!n && n.length === 44;

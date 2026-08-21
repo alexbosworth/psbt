@@ -1,12 +1,13 @@
-const {encode} = require('varuint-bitcoin');
+const {numberAsCompactInt} = require('@alexbosworth/blockchain');
 
 const createPsbt = require('./create_psbt');
 const extendPsbt = require('./extend_psbt');
 const {pushData} = require('./../script');
-const {Transaction} = require('./../tokens');
+const {Transaction} = require('bitcoinjs-lib');
 
 const bufferAsHex = buffer => buffer.toString('hex');
 const {concat} = Buffer;
+const encode = number => numberAsCompactInt({number}).encoded;
 const {fromHex} = Transaction;
 const hashAsTransactionId = hash => hash.slice().reverse().toString('hex');
 const internal = hash => hash.slice().reverse();

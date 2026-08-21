@@ -1,8 +1,9 @@
-const {encode} = require('varuint-bitcoin');
+const {numberAsCompactInt} = require('@alexbosworth/blockchain');
 
 const bip32Path = require('./bip32_path');
 
 const bufferAsHex = buffer => buffer.toString('hex');
+const encode = number => numberAsCompactInt({number}).encoded;
 const encodeList = n => encode(n.length).toString('hex') + n.join('');
 const isLegacy = n => n.public_key.length === 66;
 const isTaproot = n => n.public_key.length === 64 && !!n.leaf_hashes;

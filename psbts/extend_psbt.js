@@ -1,14 +1,15 @@
+const {numberAsCompactInt} = require('@alexbosworth/blockchain');
 const BN = require('bn.js');
-const {encode} = require('varuint-bitcoin');
 
 const decodePsbt = require('./decode_psbt');
 const encodePsbt = require('./encode_psbt');
 const {encodeSignature} = require('./../signatures');
 const {encodeDerivations} = require('./../bip32');
-const {Transaction} = require('./../tokens');
+const {Transaction} = require('bitcoinjs-lib');
 const types = require('./types');
 
 const {concat} = Buffer;
+const encode = number => numberAsCompactInt({number}).encoded;
 const hexAsBuffer = hex => Buffer.from(hex, 'hex');
 const {isArray} = Array;
 const {fromHex} = Transaction;

@@ -1,6 +1,6 @@
 const {defaultTransactionVersionNumber} = require('./constants');
 const encodePsbt = require('./encode_psbt');
-const {Transaction} = require('./../tokens');
+const {Transaction} = require('bitcoinjs-lib');
 const types = require('./types');
 
 const hexAsBuffer = hex => Buffer.from(hex, 'hex');

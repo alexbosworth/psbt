@@ -1,5 +1,16 @@
 # Versions
 
+## 6.0.0
+
+- Require node.js 22 or higher
+
+### Breaking Changes
+
+- Support for chains other than Bitcoin is removed. The `network` value for
+    `signPsbt` must now be `bitcoin`, `regtest`, or `testnet`. Bitcoin Cash,
+    Litecoin, and other alternative chain networks are no longer recognized
+    and fork id sighash signing is no longer performed.
+
 ## 5.0.0
 
 - Require node.js 20 or higher

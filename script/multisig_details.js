@@ -1,5 +1,5 @@
 const isMultisig = require('./is_multisig');
-const {script} = require('./../tokens');
+const {script} = require('bitcoinjs-lib');
 
 const bufferAsHex = buffer => buffer.toString('hex');
 const {decompile} = script;

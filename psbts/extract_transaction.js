@@ -2,8 +2,8 @@ const BN = require('bn.js');
 
 const {decBase} = require('./constants');
 const decodePsbt = require('./decode_psbt');
-const {script} = require('./../tokens');
-const {Transaction} = require('./../tokens');
+const {script} = require('bitcoinjs-lib');
+const {Transaction} = require('bitcoinjs-lib');
 
 const {decompile} = script;
 

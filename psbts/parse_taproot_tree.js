@@ -1,4 +1,4 @@
-const varuint = require('varuint-bitcoin');
+const {compactIntAsNumber} = require('@alexbosworth/blockchain');
 
 const bufferAsHex = buffer => buffer.toString('hex');
 const hexAsBuffer = hex => Buffer.from(hex, 'hex');
@@ -30,9 +30,14 @@ module.exports = ({encoded}) => {
 
   // Read leaf script tuples until there are no more left
   while (!!tree.length) {
-    scriptLength = varuint.decode(tree.subarray(scriptLengthOffset));
+    const length = compactIntAsNumber({
+      encoded: tree,
+      start: scriptLengthOffset,
+    });
 
-    lengthCounterBytes = varuint.decode.bytes;
+    scriptLength = length.number;
+
+    lengthCounterBytes = length.bytes;
 
     scriptStartIndex = scriptLengthOffset + lengthCounterBytes;
 

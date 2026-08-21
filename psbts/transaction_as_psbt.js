@@ -1,8 +1,8 @@
 const createPsbt = require('./create_psbt');
 const {isMultisig} = require('./../script');
 const {multisigDetails} = require('./../script');
-const {script} = require('./../tokens');
-const {Transaction} = require('./../tokens');
+const {script} = require('bitcoinjs-lib');
+const {Transaction} = require('bitcoinjs-lib');
 const updatePsbt = require('./update_psbt');
 
 const bufferAsHex = buffer => buffer.toString('hex');

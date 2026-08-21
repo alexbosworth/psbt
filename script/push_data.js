@@ -3,7 +3,6 @@ const {OP_PUSHDATA1} = require('bitcoin-ops');
 const {OP_PUSHDATA2} = require('bitcoin-ops');
 const {OP_PUSHDATA4} = require('bitcoin-ops');
 const pushdata = require('pushdata-bitcoin');
-const varuint = require('varuint-bitcoin');
 
 const {decBase} = require('./constants');
 const {endianness} = require('./constants');

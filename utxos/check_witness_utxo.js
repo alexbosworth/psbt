@@ -6,7 +6,7 @@ const {nestedScriptPubElementsLen} = require('./constants');
 const {p2pkhHashByteLength} = require('./constants');
 const {p2shHashByteLength} = require('./constants');
 const {p2wshHashByteLength} = require('./constants');
-const {script} = require('./../tokens');
+const {script} = require('bitcoinjs-lib');
 const {witnessScriptPubElementsLen} = require('./constants');
 
 const {decompile} = script;

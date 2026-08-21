@@ -1,11 +1,10 @@
-const {crypto} = require('./../tokens');
+const {crypto} = require('bitcoinjs-lib');
 const decodePsbt = require('./decode_psbt');
 const {encodeSignature} = require('./../signatures');
-const {hexBase} = require('./constants');
-const {networks} = require('./../tokens');
-const {payments} = require('./../tokens');
-const {script} = require('./../tokens');
-const {Transaction} = require('./../tokens');
+const {networks} = require('bitcoinjs-lib');
+const {payments} = require('bitcoinjs-lib');
+const {script} = require('bitcoinjs-lib');
+const {Transaction} = require('bitcoinjs-lib');
 const updatePsbt = require('./update_psbt');
 
 const asBuffer = n => Buffer.from(n);
@@ -102,7 +101,7 @@ module.exports = args => {
         // For each found key, add a signature
         keysToSign.filter(n => !!n).forEach(signingKey => {
           let hashToSign;
-          let sighashType = input.sighash_type;
+          const sighashType = input.sighash_type;
 
           // Witness input spending a witness utxo
           if (!!input.witness_script && !!n.witness_utxo) {
@@ -139,26 +138,9 @@ module.exports = args => {
             hashToSign = tx.hashForWitnessV0(vin, script, tokens, sighashType);
           } else {
             // Non-witness script
-            const forkId = networks[args.network].fork_id;
-
-            const forkMod = parseInt(forkId || 0, hexBase);
             const redeem = Buffer.from(input.redeem_script, 'hex');
-            const sigHash = input.sighash_type;
-            let tokens;
-            const spendsTx = Transaction.fromHex(input.non_witness_utxo);
 
-            if (!!input.witness_utxo) {
-              tokens = input.witness_utxo.tokens;
-            } else if (!!input.non_witness_utxo) {
-              tokens = spendsTx.outs[tx.ins[vin].index].value;
-            }
-
-            sighashType = !forkMod ? sigHash : forkMod | sigHash;
-
-            const fork = tx.hashForWitnessV0(vin, redeem, tokens, sighashType);
-            const normal = tx.hashForSignature(vin, redeem, sighashType);
-
-            hashToSign = !!forkMod ? fork : normal;
+            hashToSign = tx.hashForSignature(vin, redeem, sighashType);
           }
 
           if (!hashToSign) {
