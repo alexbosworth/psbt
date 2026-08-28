@@ -9,6 +9,18 @@ const {decodePsbt} = require('./../../');
 
 // Test scenarios
 const tests = {
+  psbts_with_different_transactions_cannot_be_combined: {
+    args: {psbts: ['70736274ff01003f0200000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000ffffffff010000000000000000036a01aa0000000000090f0102030405060708100f0102030405060708090a0b0c0d0e0f0000', '70736274ff01003f0200000001eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee0000000000ffffffff010000000000000000036a01aa00000000000000']},
+    err: 'ExpectedUniqueTransaction',
+    msg: 'Psbts with different transactions cannot be combined',
+  },
+  psbts_with_taproot_key_spend_signatures_are_combined: {
+    args: {psbts: ['70736274ff01003f0200000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000ffffffff010000000000000000036a01aa0000000000011340bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0000', '70736274ff01003f0200000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000ffffffff010000000000000000036a01aa0000000000011340bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0000']},
+    msg: 'Psbts with taproot key spend signatures are combined',
+    result: {
+      psbt: '70736274ff01003f0200000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000ffffffff010000000000000000036a01aa0000000000011340bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0000',
+    },
+  },
    a_combiner_that_combines_two_partially_signed_psbts: {
     args: {
       psbts: [
@@ -42,6 +54,12 @@ Object.keys(tests).map(t => tests[t]).forEach(({args, err, msg, result}) => {
     const ecp = (await import('ecpair')).ECPairFactory(tinysecp);
 
     args.ecp = ecp;
+
+    if (!!err) {
+      throws(() => combinePsbts(args), new Error(err));
+
+      return;
+    }
 
     const expected = decodePsbt({ecp, psbt: result.psbt});
     const {psbt} = combinePsbts(args);

@@ -1,10 +1,7 @@
-const BN = require('bn.js');
-
 const {bip32KeyByteLength} = require('./constants');
 const {bip32KeyLimit} = require('./constants');
 const {bip32PathSeparator} = require('./constants');
 const {decBase} = require('./constants');
-const {endianness} = require('./constants');
 const {fingerprintByteLength} = require('./constants');
 const {hardenedMarker} = require('./constants');
 
@@ -32,6 +29,11 @@ module.exports = ({path}) => {
 
     const value = parseInt(path, decBase) + (isHard ? bip32KeyLimit : 0);
 
-    return new BN(value, decBase).toArrayLike(Buffer, endianness, byteLength);
+    // The child index is encoded as an unsigned 32-bit little-endian number
+    const child = Buffer.alloc(byteLength);
+
+    child.writeUInt32LE(value);
+
+    return child;
   }));
 };

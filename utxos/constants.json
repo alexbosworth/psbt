@@ -1,4 +1,6 @@
 {
+  "maxWitnessVersion": 96,
+  "minWitnessVersion": 0,
   "nestedScriptPubElementsLen": 3,
   "p2pkhHashByteLength": 20,
   "p2shHashByteLength": 20,

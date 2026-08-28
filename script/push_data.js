@@ -1,11 +1,8 @@
-const BN = require('bn.js');
 const {OP_PUSHDATA1} = require('bitcoin-ops');
 const {OP_PUSHDATA2} = require('bitcoin-ops');
 const {OP_PUSHDATA4} = require('bitcoin-ops');
 const pushdata = require('pushdata-bitcoin');
 
-const {decBase} = require('./constants');
-const {endianness} = require('./constants');
 
 /** Get a push data buffer for data to push on the stack
 
@@ -27,33 +24,36 @@ module.exports = ({data, encode}) => {
 
   switch (Buffer.alloc(pushdata.encodingLength(dataLength)).length) {
   case 1:
-    return Buffer.concat([
-      new BN(dataLength).toArrayLike(Buffer),
-      dataToEncode,
-    ]);
+    return Buffer.concat([Buffer.from([dataLength]), dataToEncode]);
 
   case 2:
     return Buffer.concat([
-      new BN(OP_PUSHDATA1, decBase).toArrayLike(Buffer),
-      new BN(dataLength, decBase).toArrayLike(Buffer),
+      Buffer.from([OP_PUSHDATA1, dataLength]),
       dataToEncode,
     ]);
 
-  case 3:
+  case 3: {
+    const encodedLength = Buffer.alloc(2);
+
+    encodedLength.writeUInt16LE(dataLength);
+
     return Buffer.concat([
-      new BN(OP_PUSHDATA2, decBase).toArrayLike(Buffer),
-      new BN(dataLength, decBase).toArrayLike(Buffer, endianness, 2),
+      Buffer.from([OP_PUSHDATA2]),
+      encodedLength,
       dataToEncode,
     ]);
+  }
 
-  case 5:
+  default: {
+    const encodedLength = Buffer.alloc(4);
+
+    encodedLength.writeUInt32LE(dataLength);
+
     return Buffer.concat([
-      new BN(OP_PUSHDATA4, decBase).toArrayLike(Buffer),
-      new BN(dataLength, decBase).toArrayLike(Buffer, endianness, 4),
+      Buffer.from([OP_PUSHDATA4]),
+      encodedLength,
       dataToEncode,
     ]);
-
-  default:
-    throw new Error('UnexpectedLengthForDataPush');
+  }
   }
 };

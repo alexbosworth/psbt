@@ -1,5 +1,4 @@
 const {compactIntAsNumber} = require('@alexbosworth/blockchain');
-const BN = require('bn.js');
 
 const {bip32Derivation} = require('./../bip32');
 const {checkNonWitnessUtxo} = require('./../utxos');
@@ -11,6 +10,7 @@ const parseTaprootTree = require('./parse_taproot_tree');
 const {script} = require('bitcoinjs-lib');
 const {sigHashByteLength} = require('./constants');
 const {taprootBip32} = require('./../bip32');
+const tokensAsNumber = require('./tokens_as_number');
 const {tokensByteLength} = require('./constants');
 const {Transaction} = require('bitcoinjs-lib');
 const types = require('./types');
@@ -522,13 +522,7 @@ module.exports = ({ecp, psbt}) => {
 
         const scriptPub = value.slice(tokensByteLength + pubKeyLen.bytes);
 
-        let tokens;
-
-        try {
-          tokens = new BN(value.slice(0, tokensByteLength), 'le').toNumber();
-        } catch (err) {
-          throw new Error('ExpectedValidTokensNumber');
-        }
+        const tokens = tokensAsNumber({value});
 
         input.witness_utxo = {tokens, script_pub: scriptPub.toString('hex')};
         break;

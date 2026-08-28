@@ -1,10 +1,11 @@
 const {numberAsCompactInt} = require('@alexbosworth/blockchain');
-const BN = require('bn.js');
 
 const decodePsbt = require('./decode_psbt');
 const encodePsbt = require('./encode_psbt');
 const {encodeSignature} = require('./../signatures');
 const {encodeDerivations} = require('./../bip32');
+const sighashAsBuffer = require('./sighash_as_buffer');
+const tokensAsBuffer = require('./tokens_as_buffer');
 const {Transaction} = require('bitcoinjs-lib');
 const types = require('./types');
 
@@ -13,8 +14,6 @@ const encode = number => numberAsCompactInt({number}).encoded;
 const hexAsBuffer = hex => Buffer.from(hex, 'hex');
 const {isArray} = Array;
 const {fromHex} = Transaction;
-const sighashAsBuffer = n => new BN(n, 10).toArrayLike(Buffer, 'le', 4);
-const tokensAsBuffer = n => new BN(n, 10).toArrayLike(Buffer, 'le', 8);
 
 /** Extend a created PSBT template with additional fields
 
@@ -153,7 +152,7 @@ module.exports = args => {
     if (input.sighash_type !== undefined) {
       pairs.push({
         type: hexAsBuffer(types.input.sighash_type),
-        value: sighashAsBuffer(input.sighash_type),
+        value: sighashAsBuffer({sighash: input.sighash_type}),
       });
     }
 
@@ -176,7 +175,7 @@ module.exports = args => {
     // Witness UTXO being spent by this input
     if (!!input.witness_utxo) {
       const script = hexAsBuffer(input.witness_utxo.script_pub);
-      const tokens = tokensAsBuffer(input.witness_utxo.tokens);
+      const tokens = tokensAsBuffer({tokens: input.witness_utxo.tokens});
 
       pairs.push({
         type: hexAsBuffer(types.input.witness_utxo),

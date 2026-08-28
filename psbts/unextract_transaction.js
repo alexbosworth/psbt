@@ -10,7 +10,6 @@ const {concat} = Buffer;
 const encode = number => numberAsCompactInt({number}).encoded;
 const {fromHex} = Transaction;
 const hashAsTransactionId = hash => hash.slice().reverse().toString('hex');
-const internal = hash => hash.slice().reverse();
 const {isArray} = Array;
 const isTaproot = n => n.length === 68 && parseInt(n.slice(0, 2), 16) >= 1;
 

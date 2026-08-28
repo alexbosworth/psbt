@@ -93,7 +93,7 @@ module.exports = ({ecp, spending, transaction}) => {
       return redeemScripts.push(multisig.redeem_script);
     }
 
-    const [witnessScript] = (witness || []).slice().reverse();
+    const [witnessScript] = witness.slice().reverse();
 
     if (!!witness && !!script.length) {
       redeemScripts.push(bufferAsHex(script));

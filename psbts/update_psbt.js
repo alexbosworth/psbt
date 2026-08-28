@@ -1,16 +1,13 @@
 const {numberAsCompactInt} = require('@alexbosworth/blockchain');
-const BN = require('bn.js');
 const {OP_0} = require('bitcoin-ops');
 const {OP_EQUAL} = require('bitcoin-ops');
 const {OP_HASH160} = require('bitcoin-ops');
 
 const {bip32Path} = require('./../bip32');
 const {crypto} = require('bitcoinjs-lib');
-const {decBase} = require('./constants');
 const decodePsbt = require('./decode_psbt');
 const encodePsbt = require('./encode_psbt');
 const {encodeSignature} = require('./../signatures');
-const {endianness} = require('./constants');
 const {isMultisig} = require('./../script');
 const {opNumberOffset} = require('./constants');
 const {pushData} = require('./../script');
@@ -263,7 +260,7 @@ module.exports = args => {
       return transactionId(transaction) === input.hash.toString('hex');
     });
 
-    const spendOut = !spending ? null : txOuts(spending)[input.index];
+    const spendOut = txOuts(spending)[input.index];
 
     if (!!outW && !!outW.witness) {
       utxo.witness_script = outW.witness.toString('hex');
@@ -393,8 +390,9 @@ module.exports = args => {
     if (!!n.witness_utxo) {
       const script = Buffer.from(n.witness_utxo.script_pub, 'hex');
 
-      const tokens = new BN(n.witness_utxo.tokens, decBase)
-        .toArrayLike(Buffer, endianness, tokensByteLength);
+      const tokens = Buffer.alloc(tokensByteLength);
+
+      tokens.writeBigUInt64LE(BigInt(n.witness_utxo.tokens));
 
       pairs.push({
         type: Buffer.from(types.input.witness_utxo, 'hex'),
@@ -425,11 +423,13 @@ module.exports = args => {
 
     // Sighash used to sign this input
     if (!args.is_final && !!n.sighash_type) {
-      const sighash = new BN(n.sighash_type, decBase);
+      const sighash = Buffer.alloc(sigHashByteLength);
+
+      sighash.writeUInt32LE(Number(n.sighash_type));
 
       pairs.push({
         type: Buffer.from(types.input.sighash_type, 'hex'),
-        value: sighash.toArrayLike(Buffer, endianness, sigHashByteLength),
+        value: sighash,
       });
     }
 
@@ -586,7 +586,7 @@ module.exports = args => {
 
       // Non-witness Multi-sig?
       if (isMultisig({script: n.redeem_script})) {
-        const nullDummy = new BN(OP_0, decBase).toArrayLike(Buffer);
+        const nullDummy = Buffer.from([OP_0]);
         const redeemScript = Buffer.from(n.redeem_script, 'hex');
 
         const redeemScriptPush = pushData({data: redeemScript});
@@ -616,7 +616,7 @@ module.exports = args => {
 
       // Witness Multi-sig?
       if (isMultisig({script: n.witness_script})) {
-        const nullDummy = new BN(OP_0, decBase).toArrayLike(Buffer);
+        const nullDummy = Buffer.from([OP_0]);
         const witnessScript = Buffer.from(n.witness_script, 'hex');
 
         const [sigsRequired] = decompile(witnessScript);
@@ -644,21 +644,6 @@ module.exports = args => {
 
         const components = [].concat(sigs).concat(witnessScriptPush);
 
-        if (Array.isArray(n.add_stack_elements)) {
-          n.add_stack_elements.sort((a, b) => (a.index < b.index ? -1 : 1));
-
-          n.add_stack_elements.forEach(({index, value}) => {
-            const pushValue = Buffer.from(value, 'hex');
-
-            const pushDataValue = Buffer.concat([
-              encode(pushValue.length),
-              pushValue,
-            ]);
-
-            return components.splice(index, 0, pushDataValue);
-          });
-        }
-
         const value = Buffer.concat([
           encode(components.length),
           Buffer.concat(components),
@@ -676,14 +661,6 @@ module.exports = args => {
         const redeemScript = Buffer.from(n.redeem_script, 'hex');
 
         const components = [].concat(signatures).concat(redeemScript);
-
-        if (Array.isArray(n.add_stack_elements)) {
-          n.add_stack_elements.sort((a, b) => (a.index < b.index ? -1 : 1));
-
-          n.add_stack_elements.forEach(({index, value}) => {
-            return components.splice(index, 0, Buffer.from(value, 'hex'));
-          });
-        }
 
         if (!n.witness_utxo) {
           pairs.push({
@@ -722,7 +699,7 @@ module.exports = args => {
 
   // Iterate through outputs to add pairs as appropriate
   tx.outs.forEach((out, vout) => {
-    const output = outputs[vout] || decoded.outputs[vout] || {};
+    const output = outputs[vout] || decoded.outputs[vout];
 
     if (!!output.bip32_derivation) {
       pairs.push({

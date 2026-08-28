@@ -6,6 +6,16 @@ const {createPsbt} = require('./../../');
 
 // Test scenarios
 const tests = {
+  an_array_of_outputs_is_expected: {
+    args: {utxos: []},
+    err: 'ExpectedTransactionOutputsForNewPsbt',
+    msg: 'An array of outputs is expected',
+  },
+  an_array_of_utxos_is_expected: {
+    args: {outputs: []},
+    err: 'ExpectedTransactionInputsForNewPsbt',
+    msg: 'An array of utxos is expected',
+  },
   a_creator_creating_a_psbt_for_a_transaction: {
     args: {
       outputs: [
@@ -40,7 +50,7 @@ const tests = {
 Object.keys(tests).map(t => tests[t]).forEach(({args, err, msg, result}) => {
   return test(msg, (t, end) => {
     if (!!err) {
-      throws(() => encodePsbt(args), new Error(err));
+      throws(() => createPsbt(args), new Error(err));
 
       return end();
     }

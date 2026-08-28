@@ -9,6 +9,31 @@ const {decodePsbt} = require('./../../');
 
 // Test scenarios
 const tests = {
+  a_duplicate_global_transaction_is_rejected: {
+    args: {psbt: '70736274ff01003f0200000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000ffffffff010000000000000000036a01aa0000000001003f0200000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000ffffffff010000000000000000036a01aa00000000000000'},
+    err: 'InvalidGlobalTransactionKeyType',
+    msg: 'A duplicate global unsigned transaction is rejected',
+  },
+  a_global_transaction_with_witnesses_is_rejected: {
+    args: {psbt: '70736274ff01004402000000000101ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000ffffffff010000000000000000036a01aa0101aa00000000000000'},
+    err: 'ExpectedEmptyWitnesses',
+    msg: 'A global unsigned transaction with witnesses is rejected',
+  },
+  an_ecpair_object_is_expected: {
+    args: {ecp: undefined, psbt: '00'},
+    err: 'ExpectedEcpairLibraryToDecodePartiallySignedBitcoinTx',
+    msg: 'An ecpair object is expected to decode a psbt',
+  },
+  a_psbt_to_decode_is_expected: {
+    args: {},
+    err: 'ExpectedHexSerializedPartiallySignedBitcoinTransaction',
+    msg: 'A psbt to decode is expected',
+  },
+  a_global_separator_is_expected: {
+    args: {psbt: '70736274fe'},
+    err: 'ExpectedGlobalSeparator',
+    msg: 'A global separator is expected after the magic bytes',
+  },
   empty_inputs_are_represented: {
     args: {
       psbt: '70736274ff0100fd630102000000030146055816a5ce735defea7c69abb584946fadb54befc4ce55eb039f9ccfdda10000000000ffffffff16d3dad203d4d016ede6ffef29ed24b1bce4ba8efbe4ad8482bacf65d92ed57e0000000000ffffffff01e7e7e51596634dbccb27ee5031276293f2765084b72a889d5bb0aa84425ad80000000000ffffffff06a0860100000000002200203a291e21dee6c814294f159dcf259e9e82ffa3881fd09b22537400b8c5a8d0c8c76a042a01000000160014ca4be4a08bbd2acc8431e920a41f7ccfcd8fc8ada086010000000000220020f21b761d396210ba5cfd796db936bef36432f13d20afe55b57872a090415ce98c76a042a010000001600148b25e25be092a33e4524a9b2da5046fcc6e27e05a086010000000000220020eed63c2f9175915a94ad626ba35dcbf876a72116ea6fbd50b094b08b347e8688c76a042a010000001600147e5b3b51cc3217ac8f384a665285f90a4dd6826a0000000000000100a9020000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff0401680101ffffffff0200f2052a01000000160014fb9ae43f439741acb5d4f2813b4177adb09a52950000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf9012000000000000000000000000000000000000000000000000000000000000000000000000001011f00f2052a01000000160014fb9ae43f439741acb5d4f2813b4177adb09a52952202025008f4d43049ea3ff9e71bca9b96402cc92c1c911adebcf5722d94e5bc84b48f47304402202e7f867ac0647b7c659d8742a0dae894437354106c98413a4b7beea2758e973502205787be7f941ecdda56cc099b297d4f71dfca5e859c6f5709852a1efd9d6995cc01010304010000002206025008f4d43049ea3ff9e71bca9b96402cc92c1c911adebcf5722d94e5bc84b48f180000000054000080000000800000008000000000010000000000000000000000',
@@ -1060,7 +1085,9 @@ const tests = {
 // Run the tests
 Object.keys(tests).map(t => tests[t]).forEach(({args, err, msg, result}) => {
   return test(msg, async () => {
-    args.ecp = (await import('ecpair')).ECPairFactory(tinysecp);
+    if (!('ecp' in args)) {
+      args.ecp = (await import('ecpair')).ECPairFactory(tinysecp);
+    }
 
     if (!!err) {
       throws(() => decodePsbt(args), new Error(err));

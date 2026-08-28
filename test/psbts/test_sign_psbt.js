@@ -9,6 +9,88 @@ const {signPsbt} = require('./../../');
 
 // Test scenarios
 const tests = {
+  a_default_sighash_is_used_when_none_is_specified: {
+    args: {
+      network: 'testnet',
+      psbt: '70736274ff01003f0200000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000ffffffff010000000000000000036a01aa000000000001011fa0860100000000001600149c4942a9f2efe4fb66fb2021c8e1b5e03b257cba0000',
+      signing_keys: ['cP53pDbR5WtAD8dYAW9hhTjuvvTVaEiQBdrz9XPrgLBeRFiyCbQr'],
+    },
+    msg: 'A default sighash is used when none is specified',
+    result: {
+      psbt: '70736274ff01003f0200000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000ffffffff010000000000000000036a01aa000000000001011fa0860100000000001600149c4942a9f2efe4fb66fb2021c8e1b5e03b257cba2202029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f47304402206f14e6a6f550303f483cc6afa8eb1b3a3403ae776704787edb37290e9f120b6d022021711c508e8bb80135460407949b01b2194ef57a3fe2ae4c15207d8db085e60c01010304010000000000',
+    },
+  },
+  a_witness_public_key_hash_utxo_is_signed_without_derivations: {
+    args: {
+      network: 'testnet',
+      psbt: '70736274ff01003f0200000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000ffffffff010000000000000000036a01aa00000000000103040100000001011fa0860100000000001600149c4942a9f2efe4fb66fb2021c8e1b5e03b257cba0000',
+      signing_keys: ['cP53pDbR5WtAD8dYAW9hhTjuvvTVaEiQBdrz9XPrgLBeRFiyCbQr'],
+    },
+    msg: 'A witness public key hash utxo is signed without derivations',
+    result: {
+      psbt: '70736274ff01003f0200000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000ffffffff010000000000000000036a01aa000000000001011fa0860100000000001600149c4942a9f2efe4fb66fb2021c8e1b5e03b257cba2202029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f47304402206f14e6a6f550303f483cc6afa8eb1b3a3403ae776704787edb37290e9f120b6d022021711c508e8bb80135460407949b01b2194ef57a3fe2ae4c15207d8db085e60c01010304010000000000',
+    },
+  },
+  a_witness_script_utxo_is_signed_without_derivations: {
+    args: {
+      network: 'testnet',
+      psbt: '70736274ff01003f0200000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000ffffffff010000000000000000036a01aa0000000000010304010000000105255121029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f51ae01012ba086010000000000220020e0ba5e24cac5375c5cdf78c6c3f39721f36f3ac64d480314c573285cc8baffa30000',
+      signing_keys: ['cP53pDbR5WtAD8dYAW9hhTjuvvTVaEiQBdrz9XPrgLBeRFiyCbQr'],
+    },
+    msg: 'A witness script utxo is signed without derivations',
+    result: {
+      psbt: '70736274ff01003f0200000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000ffffffff010000000000000000036a01aa000000000001012ba086010000000000220020e0ba5e24cac5375c5cdf78c6c3f39721f36f3ac64d480314c573285cc8baffa32202029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f47304402200a377c9fafe499b5290e06de553fdd98debc28a0ee4c893e1e184cd2f901a8560220079bfd03ea2ec843d07de72cce4da57211a5f67b1406dfeb9eee4550d2b9cf4601010304010000000105255121029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f51ae0000',
+    },
+  },
+  a_nested_witness_script_input_is_signed_without_derivations: {
+    args: {
+      network: 'testnet',
+      psbt: '70736274ff01003f0200000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000ffffffff010000000000000000036a01aa0000000000010053010000000101010101010101010101010101010101010101010101010101010101010101010000000000ffffffff01a08601000000000017a9140591c3e786cce934d5294082533b3165cb9297c587000000000104220020e0ba5e24cac5375c5cdf78c6c3f39721f36f3ac64d480314c573285cc8baffa3010304010000000105255121029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f51ae0000',
+      signing_keys: ['cP53pDbR5WtAD8dYAW9hhTjuvvTVaEiQBdrz9XPrgLBeRFiyCbQr'],
+    },
+    msg: 'A nested witness script input is signed without derivations',
+    result: {
+      psbt: '70736274ff01003f0200000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000ffffffff010000000000000000036a01aa0000000000010053010000000101010101010101010101010101010101010101010101010101010101010101010000000000ffffffff01a08601000000000017a9140591c3e786cce934d5294082533b3165cb9297c587000000002202029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f47304402200a377c9fafe499b5290e06de553fdd98debc28a0ee4c893e1e184cd2f901a8560220079bfd03ea2ec843d07de72cce4da57211a5f67b1406dfeb9eee4550d2b9cf4601010304010000000104220020e0ba5e24cac5375c5cdf78c6c3f39721f36f3ac64d480314c573285cc8baffa30105255121029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f51ae0000',
+    },
+  },
+  a_witness_script_spending_a_legacy_utxo_is_signed: {
+    args: {
+      network: 'testnet',
+      psbt: '70736274ff01003f0200000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000ffffffff010000000000000000036a01aa000000000001005e010000000102020202020202020202020202020202020202020202020202020202020202020000000000ffffffff0190d0030000000000220020e0ba5e24cac5375c5cdf78c6c3f39721f36f3ac64d480314c573285cc8baffa300000000010304010000000105255121029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f51ae0000',
+      signing_keys: ['cP53pDbR5WtAD8dYAW9hhTjuvvTVaEiQBdrz9XPrgLBeRFiyCbQr'],
+    },
+    msg: 'A witness script spending a legacy utxo is signed',
+    result: {
+      psbt: '70736274ff01003f0200000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000ffffffff010000000000000000036a01aa000000000001005e010000000102020202020202020202020202020202020202020202020202020202020202020000000000ffffffff0190d0030000000000220020e0ba5e24cac5375c5cdf78c6c3f39721f36f3ac64d480314c573285cc8baffa3000000002202029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f483045022100a01f26736aa9d79f07bff898a63289b896fcf5f27e795877cfbfb219fd7534f3022052753a231fc17743301d1c7b7cc5c09ac6f0ce9756b90121e76ba1b4b918da5e01010304010000000105255121029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f51ae0000',
+    },
+  },
+  a_legacy_redeem_script_input_is_signed_without_derivations: {
+    args: {
+      network: 'testnet',
+      psbt: '70736274ff01003f0200000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000ffffffff010000000000000000036a01aa0000000000010053010000000103030303030303030303030303030303030303030303030303030303030303030000000000ffffffff01a08601000000000017a91421b6ec25482b95dd33fd93ff7680a71d1660a7c187000000000104255121029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f51ae010304010000000000',
+      signing_keys: ['cP53pDbR5WtAD8dYAW9hhTjuvvTVaEiQBdrz9XPrgLBeRFiyCbQr'],
+    },
+    msg: 'A legacy redeem script input is signed without derivations',
+    result: {
+      psbt: '70736274ff01003f0200000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000ffffffff010000000000000000036a01aa0000000000010053010000000103030303030303030303030303030303030303030303030303030303030303030000000000ffffffff01a08601000000000017a91421b6ec25482b95dd33fd93ff7680a71d1660a7c187000000002202029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f47304402202146574defbbb333ecc7159df224b7f04cc9d1dcd7e521e4d7d3a1822e2023130220408c406ffa82d2c1e56529f34714da2b2e4bdcef4b3a8e585b7086528fd05e6401010304010000000104255121029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f51ae0000',
+    },
+  },
+  a_derivation_without_a_signable_input_adds_no_signature: {
+    args: {
+      network: 'testnet',
+      psbt: '70736274ff01003f0200000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000ffffffff010000000000000000036a01aa00000000002206029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f10000000000000008000000000000000000103040100000001011fa0860100000000001600149c4942a9f2efe4fb66fb2021c8e1b5e03b257cba0000',
+      signing_keys: ['cP53pDbR5WtAD8dYAW9hhTjuvvTVaEiQBdrz9XPrgLBeRFiyCbQr'],
+    },
+    msg: 'A derivation without a signable input adds no signature',
+    result: {
+      psbt: '70736274ff01003f0200000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000ffffffff010000000000000000036a01aa000000000001011fa0860100000000001600149c4942a9f2efe4fb66fb2021c8e1b5e03b257cba2206029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f10000000000000008000000000000000000000',
+    },
+  },
+  an_invalid_psbt_is_rejected: {
+    args: {network: 'testnet', psbt: '00', signing_keys: []},
+    err: 'UnrecognizedMagicBytes',
+    msg: 'An invalid psbt is rejected when signing',
+  },
    a_signer_that_supports_sighash_all_for_p2pkh_and_p2wpkh_spends: {
     args: {
       network: 'testnet',
@@ -46,6 +128,12 @@ Object.keys(tests).map(t => tests[t]).forEach(({args, err, msg, result}) => {
     const ecp = (await import('ecpair')).ECPairFactory(tinysecp);
 
     args.ecp = ecp;
+
+    if (!!err) {
+      throws(() => signPsbt(args), new Error(err));
+
+      return;
+    }
 
     const expected = decodePsbt({ecp, psbt: result.psbt});
     const {psbt} = signPsbt(args);

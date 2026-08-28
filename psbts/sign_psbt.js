@@ -104,12 +104,12 @@ module.exports = args => {
           const sighashType = input.sighash_type;
 
           // Witness input spending a witness utxo
-          if (!!input.witness_script && !!n.witness_utxo) {
+          if (!!input.witness_script && !!input.witness_utxo) {
             const script = Buffer.from(input.witness_script, 'hex');
             const tokens = input.witness_utxo.tokens;
 
             hashToSign = tx.hashForWitnessV0(vin, script, tokens, sighashType);
-          } if (!!input.witness_script && !!input.redeem_script) {
+          } else if (!!input.witness_script && !!input.redeem_script) {
             // Nested witness input
             const nonWitnessUtxo = Transaction.fromHex(input.non_witness_utxo);
             const redeemScript = Buffer.from(input.redeem_script, 'hex');
@@ -141,10 +141,6 @@ module.exports = args => {
             const redeem = Buffer.from(input.redeem_script, 'hex');
 
             hashToSign = tx.hashForSignature(vin, redeem, sighashType);
-          }
-
-          if (!hashToSign) {
-            return;
           }
 
           const sig = encodeSignature({

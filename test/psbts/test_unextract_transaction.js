@@ -9,6 +9,44 @@ const {unextractTransaction} = require('./../../');
 
 // Test scenarios
 const tests = [
+  {
+    args: {
+      spending: [],
+      transaction: '02000000000101a82f1922fb7d3de5ec7f7a10639f649f467f86cdd9dd58e6b21875ccb8a417d50100000000ffffffff029e7307000000000016001472924e7842611d799aa663c779fa589cfda04be320a1070000000000225120bf5690f1bc5f738cb8e4fced9073e33705a1283870531e282449af45162a6eb801406f31a87e4997440277c02417dc7b4c8bd64ba571d4f4e271ca3afb43c54590a564c6870511cec4ec4c95ae4de04d8cd7822e94daf89ac17e8da99cd175b7141400000000',
+      utxos: [{
+        script_pub: '5120bf5690f1bc5f738cb8e4fced9073e33705a1283870531e282449af45162a6eb8',
+        tokens: 500000,
+        vin: 0,
+      }],
+    },
+    description: 'A p2tr spend is converted to a psbt using utxo references',
+    expected: {
+      psbt: '70736274ff01007d0200000001a82f1922fb7d3de5ec7f7a10639f649f467f86cdd9dd58e6b21875ccb8a417d50100000000ffffffff029e7307000000000016001472924e7842611d799aa663c779fa589cfda04be320a1070000000000225120bf5690f1bc5f738cb8e4fced9073e33705a1283870531e282449af45162a6eb8000000000001084201406f31a87e4997440277c02417dc7b4c8bd64ba571d4f4e271ca3afb43c54590a564c6870511cec4ec4c95ae4de04d8cd7822e94daf89ac17e8da99cd175b7141401012b20a1070000000000225120bf5690f1bc5f738cb8e4fced9073e33705a1283870531e282449af45162a6eb8000000',
+    },
+  },
+  {
+    args: {
+      spending: [],
+      transaction: '0200000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000ffffffff010000000000000000036a01aa00000000',
+    },
+    description: 'Spending transactions are expected for all inputs',
+    err: 'ExpectedSpendingTransactionsForAllInputs',
+  },
+  {
+    args: {ecp: undefined, spending: [], transaction: '00'},
+    description: 'An ecpair object is expected to unextract a transaction',
+    err: 'ExpectedEcpairLibraryToUnextractTransaction',
+  },
+  {
+    args: {transaction: '00'},
+    description: 'An array of spending transactions is expected',
+    err: 'ExpectedArrayOfSpendingTransactionsToUnextractTx',
+  },
+  {
+    args: {spending: []},
+    description: 'A transaction to unextract is expected',
+    err: 'ExpectedTransactionToUnextractIntoFinalizedPsbt',
+  },
   // Test p2tr
   {
     args: {
@@ -115,7 +153,15 @@ tests.forEach(({args, err, expected, description}) => {
   return test(description, async () => {
     const ecp = (await import('ecpair')).ECPairFactory(tinysecp);
 
-    args.ecp = ecp;
+    if (!('ecp' in args)) {
+      args.ecp = ecp;
+    }
+
+    if (!!err) {
+      throws(() => unextractTransaction(args), new Error(err));
+
+      return;
+    }
 
     const got = unextractTransaction(args);
 

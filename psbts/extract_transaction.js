@@ -1,7 +1,5 @@
-const BN = require('bn.js');
-
-const {decBase} = require('./constants');
 const decodePsbt = require('./decode_psbt');
+const numberAsBuffer = require('./number_as_buffer');
 const {script} = require('bitcoinjs-lib');
 const {Transaction} = require('bitcoinjs-lib');
 
@@ -54,7 +52,7 @@ module.exports = ({ecp, psbt}) => {
           return n;
         }
 
-        return new BN(n, decBase).toArrayLike(Buffer);
+        return numberAsBuffer({number: n});
       });
 
       tx.setWitness(vin, decompile(witnessElements));

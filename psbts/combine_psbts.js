@@ -98,15 +98,11 @@ module.exports = ({ecp, psbts}) => {
     });
   });
 
-  try {
-    return updatePsbt({
-      ecp,
-      signatures,
-      additional_attributes: additionalAttributes,
-      psbt: referencePsbt,
-      taproot_inputs: taprootInputs,
-    });
-  } catch (err) {
-    throw err;
-  }
+  return updatePsbt({
+    ecp,
+    signatures,
+    additional_attributes: additionalAttributes,
+    psbt: referencePsbt,
+    taproot_inputs: taprootInputs,
+  });
 };

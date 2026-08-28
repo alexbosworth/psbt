@@ -10,6 +10,61 @@ const {updatePsbt} = require('./../../');
 
 // Test scenarios
 const tests = {
+  a_witness_utxo_derivation_is_matched_by_public_key_hash: {
+    args: {
+      bip32_derivations: [{
+        fingerprint: 'd90c6a4f',
+        path: "m/0'/0/0",
+        public_key: '029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f',
+      }],
+      psbt: '70736274ff01003f02000000010fe8b476d9e987f6180880b7be1751080ba3db8abb87617a4608c1d0852629a90000000000ffffffff010000000000000000036a01aa00000000000000',
+      transactions: ['010000000106060606060606060606060606060606060606060606060606060606060606060000000000ffffffff01a0860100000000001600149c4942a9f2efe4fb66fb2021c8e1b5e03b257cba00000000'],
+    },
+    msg: 'A witness utxo derivation is matched by public key hash',
+    result: {
+      psbt: '70736274ff01003f02000000010fe8b476d9e987f6180880b7be1751080ba3db8abb87617a4608c1d0852629a90000000000ffffffff010000000000000000036a01aa000000000001011fa0860100000000001600149c4942a9f2efe4fb66fb2021c8e1b5e03b257cba2206029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f10d90c6a4f0000008000000000000000000000',
+    },
+  },
+  a_taproot_key_spend_signature_with_a_hash_type_is_added: {
+    args: {
+      psbt: '70736274ff01003f0200000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000ffffffff010000000000000000036a01aa0000000000090f0102030405060708100f0102030405060708090a0b0c0d0e0f0000',
+      taproot_inputs: [{vin: 0, key_spend_sig: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb01'}],
+    },
+    msg: 'A taproot key spend signature with a hash type is added',
+    result: {
+      psbt: '70736274ff01003f0200000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000ffffffff010000000000000000036a01aa0000000000011341bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb010000',
+    },
+  },
+  a_witness_utxo_is_updated_without_redeem_scripts: {
+    args: {
+      psbt: '70736274ff01003f02000000010fe8b476d9e987f6180880b7be1751080ba3db8abb87617a4608c1d0852629a90000000000ffffffff010000000000000000036a01aa00000000000000',
+      transactions: ['010000000106060606060606060606060606060606060606060606060606060606060606060000000000ffffffff01a0860100000000001600149c4942a9f2efe4fb66fb2021c8e1b5e03b257cba00000000'],
+    },
+    msg: 'A witness utxo is updated without redeem scripts',
+    result: {
+      psbt: '70736274ff01003f02000000010fe8b476d9e987f6180880b7be1751080ba3db8abb87617a4608c1d0852629a90000000000ffffffff010000000000000000036a01aa000000000001011fa0860100000000001600149c4942a9f2efe4fb66fb2021c8e1b5e03b257cba0000',
+    },
+  },
+  a_taproot_key_spend_signature_is_added: {
+    args: {
+      psbt: '70736274ff01003f0200000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000ffffffff010000000000000000036a01aa0000000000090f0102030405060708100f0102030405060708090a0b0c0d0e0f0000',
+      taproot_inputs: [{vin: 0, key_spend_sig: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'}],
+    },
+    msg: 'A taproot key spend signature is added to a psbt',
+    result: {
+      psbt: '70736274ff01003f0200000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000ffffffff010000000000000000036a01aa0000000000011340bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0000',
+    },
+  },
+  an_ecpair_object_is_expected: {
+    args: {ecp: undefined, psbt: '00'},
+    err: 'ExpectedEcpairObjectToUpdatePsbt',
+    msg: 'An ecpair object is expected',
+  },
+  a_psbt_to_update_is_expected: {
+    args: {},
+    err: 'ExpectedPsbtToUpdate',
+    msg: 'A psbt to update is expected',
+  },
   an_updater_updates_a_created_psbt: {
     args: {
       bip32_derivations: [
@@ -91,12 +146,14 @@ Object.keys(tests).map(t => tests[t]).forEach(({args, err, msg, result}) => {
   return test(msg, async () => {
     const ecp = (await import('ecpair')).ECPairFactory(tinysecp);
 
-    args.ecp = ecp;
+    if (!('ecp' in args)) {
+      args.ecp = ecp;
+    }
 
     if (!!err) {
-      throws(() => encodePsbt(args), new Error(err));
+      throws(() => updatePsbt(args), new Error(err));
 
-      return end();
+      return;
     }
 
     const expected = decodePsbt({ecp, psbt: result.psbt});
