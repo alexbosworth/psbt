@@ -1,9 +1,10 @@
+const {createHash} = require('node:crypto');
+
 const {compactIntAsNumber} = require('@alexbosworth/blockchain');
 
 const {bip32Derivation} = require('./../bip32');
 const {checkNonWitnessUtxo} = require('./../utxos');
 const {checkWitnessUtxo} = require('./../utxos');
-const {crypto} = require('bitcoinjs-lib');
 const {decodeSignature} = require('./../signatures');
 const {keyCodeByteLength} = require('./constants');
 const parseTaprootTree = require('./parse_taproot_tree');
@@ -19,12 +20,13 @@ const bufferAsHex = buffer => buffer.toString('hex');
 const countGlobal = 1;
 const {decompile} = script;
 const globalSeparatorCode = parseInt(types.global.separator, 16);
-const {hash160} = crypto;
+const hash160 = n => createHash('ripemd160').update(sha256(n)).digest();
 const isControlBlockLength = n => n >= 33 && n <= 4129 && (n - 33) % 32 === 0;
 const isSchnorrSignature = n => n.length === 64 || n.length === 65;
 const lengthHash = 32;
 const magicBytes = Buffer.from(types.global.magic);
 const scriptForLeafScript = value => value.subarray(0, value.length - 1);
+const sha256 = n => createHash('sha256').update(n).digest();
 const tapScriptSigKeyTypeLength = 65;
 const tapScriptSigEnd = 33;
 const valueAsSchnorrSig = n => n.subarray(0, 64);
@@ -506,7 +508,7 @@ module.exports = ({ecp, psbt}) => {
         }
 
         input.witness_script = value.toString('hex');
-        input.witness_script_hash = crypto.sha256(value);
+        input.witness_script_hash = sha256(value);
         break;
 
       case types.input.witness_utxo:

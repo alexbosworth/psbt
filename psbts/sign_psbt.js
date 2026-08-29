@@ -1,8 +1,10 @@
-const {crypto} = require('bitcoinjs-lib');
+const {createHash} = require('node:crypto');
+
+const {p2pkhOutputScript} = require('@alexbosworth/blockchain');
+
 const decodePsbt = require('./decode_psbt');
 const {encodeSignature} = require('./../signatures');
-const {networks} = require('bitcoinjs-lib');
-const {payments} = require('bitcoinjs-lib');
+const networks = require('./networks');
 const {script} = require('bitcoinjs-lib');
 const {Transaction} = require('bitcoinjs-lib');
 const updatePsbt = require('./update_psbt');
@@ -10,8 +12,8 @@ const updatePsbt = require('./update_psbt');
 const asBuffer = n => Buffer.from(n);
 const {decompile} = script;
 const defaultSighashType = Transaction.SIGHASH_ALL;
-const {hash160} = crypto;
-const {p2pkh} = payments;
+const hash160 = n => createHash('ripemd160').update(sha256(n)).digest();
+const sha256 = n => createHash('sha256').update(n).digest();
 
 /** Update a PSBT with signatures
 
@@ -70,7 +72,7 @@ module.exports = args => {
         [keyForHash].filter(n => !!n).forEach(signingKey => {
           const hashToSign = tx.hashForWitnessV0(
             vin,
-            p2pkh({hash: pkHash}).output,
+            p2pkhOutputScript({hash: pkHash}).script,
             input.witness_utxo.tokens,
             input.sighash_type || defaultSighashType
           );

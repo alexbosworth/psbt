@@ -1,10 +1,11 @@
+const {createHash} = require('node:crypto');
+
 const {numberAsCompactInt} = require('@alexbosworth/blockchain');
 const {OP_0} = require('bitcoin-ops');
 const {OP_EQUAL} = require('bitcoin-ops');
 const {OP_HASH160} = require('bitcoin-ops');
 
 const {bip32Path} = require('./../bip32');
-const {crypto} = require('bitcoinjs-lib');
 const decodePsbt = require('./decode_psbt');
 const encodePsbt = require('./encode_psbt');
 const {encodeSignature} = require('./../signatures');
@@ -20,12 +21,12 @@ const types = require('./types');
 
 const {decompile} = script;
 const encode = number => numberAsCompactInt({number}).encoded;
-const {hash160} = crypto;
+const hash160 = n => createHash('ripemd160').update(sha256(n)).digest();
 const {isBuffer} = Buffer;
 const isNestedP2wpkhReedeemScript = n => !!n && n.length === 44;
 const publicKeyHashLength = 20;
 const redeemHashLength = 20;
-const {sha256} = crypto;
+const sha256 = n => createHash('sha256').update(n).digest();
 const transactionId = tx => Transaction.fromHex(tx).getId();
 const txOuts = tx => Transaction.fromHex(tx).outs;
 
