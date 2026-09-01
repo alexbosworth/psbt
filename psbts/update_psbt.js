@@ -1,9 +1,12 @@
 const {createHash} = require('node:crypto');
 
+const {componentsOfTransaction} = require('@alexbosworth/blockchain');
+const {idForTransaction} = require('@alexbosworth/blockchain');
 const {numberAsCompactInt} = require('@alexbosworth/blockchain');
 const {OP_0} = require('bitcoin-ops');
 const {OP_EQUAL} = require('bitcoin-ops');
 const {OP_HASH160} = require('bitcoin-ops');
+const {scriptAsScriptElements} = require('@alexbosworth/blockchain');
 
 const {bip32Path} = require('./../bip32');
 const decodePsbt = require('./decode_psbt');
@@ -12,23 +15,23 @@ const {encodeSignature} = require('./../signatures');
 const {isMultisig} = require('./../script');
 const {opNumberOffset} = require('./constants');
 const {pushData} = require('./../script');
-const {script} = require('bitcoinjs-lib');
 const {sigHashByteLength} = require('./constants');
 const {stackIndexByteLength} = require('./constants');
 const {tokensByteLength} = require('./constants');
-const {Transaction} = require('bitcoinjs-lib');
 const types = require('./types');
 
-const {decompile} = script;
+const asElements = script => scriptAsScriptElements({script}).elements;
+const bufferAsHex = buffer => buffer.toString('hex');
 const encode = number => numberAsCompactInt({number}).encoded;
 const hash160 = n => createHash('ripemd160').update(sha256(n)).digest();
+const hasWitness = tx => tx.inputs.some(n => !!(n.witness || []).length);
 const {isBuffer} = Buffer;
 const isNestedP2wpkhReedeemScript = n => !!n && n.length === 44;
 const publicKeyHashLength = 20;
 const redeemHashLength = 20;
 const sha256 = n => createHash('sha256').update(n).digest();
-const transactionId = tx => Transaction.fromHex(tx).getId();
-const txOuts = tx => Transaction.fromHex(tx).outs;
+const transactionId = tx => idForTransaction({transaction: tx}).id;
+const txOuts = tx => componentsOfTransaction({transaction: tx}).outputs;
 
 /** Update a PSBT
 
@@ -101,7 +104,9 @@ module.exports = args => {
   const witnessScripts = args.witness_scripts || [];
   const witnesses = {};
 
-  const tx = Transaction.fromHex(decoded.unsigned_transaction);
+  const tx = componentsOfTransaction({
+    transaction: decoded.unsigned_transaction,
+  });
 
   decoded.inputs = decoded.inputs.map(input => {
     return !Object.keys(input).length ? null : input;
@@ -110,7 +115,7 @@ module.exports = args => {
   // The unsigned transaction is the top pair
   pairs.push({
     type: Buffer.from(types.global.unsigned_tx, 'hex'),
-    value: tx.toBuffer(),
+    value: Buffer.from(decoded.unsigned_transaction, 'hex'),
   });
 
   addAttributes.forEach(({type, value, vin, vout}) => {
@@ -148,11 +153,11 @@ module.exports = args => {
   }
 
   // Index transactions by id
-  transactions.forEach(t => txs[Transaction.fromHex(t).getId()] = t);
+  transactions.forEach(t => txs[transactionId(t)] = t);
 
   // Index redeem scripts by redeem script hash
   redeemScripts.map(n => Buffer.from(n, 'hex')).forEach(script => {
-    const scriptBuffers = decompile(script).filter(Buffer.isBuffer);
+    const scriptBuffers = asElements(bufferAsHex(script)).filter(isBuffer);
 
     scriptBuffers
       .map(n => n.toString('hex'))
@@ -179,7 +184,7 @@ module.exports = args => {
       return;
     }
 
-    const decompiledBuffers = decompile(script).filter(Buffer.isBuffer);
+    const decompiledBuffers = asElements(bufferAsHex(script)).filter(isBuffer);
 
     const foundKeys = decompiledBuffers.map(n => pubKeys[n.toString('hex')]);
 
@@ -194,12 +199,12 @@ module.exports = args => {
   });
 
   // Iterate through transaction inputs and fill in values
-  tx.ins.forEach((input, vin) => {
+  tx.inputs.forEach((input, vin) => {
     const utxo = decoded.inputs[vin] || {};
 
-    const spendsTxId = input.hash.reverse().toString('hex');
+    const spendsTxId = input.id;
 
-    utxo.sighash_type = sighashes[`${spendsTxId}:${input.index}`];
+    utxo.sighash_type = sighashes[`${spendsTxId}:${input.vout}`];
 
     if (Array.isArray(signatures[vin])) {
       utxo.partial_sig = signatures[vin];
@@ -212,17 +217,17 @@ module.exports = args => {
       return inputs.push(null);
     }
 
-    const spendsTx = Transaction.fromHex(spends);
+    const spendsTx = componentsOfTransaction({transaction: spends});
 
     // Find the non-witness output
-    const out = spendsTx.outs
+    const out = spendsTx.outputs
       .filter(({script}) => {
-        const [, hash] = decompile(script);
+        const [, hash] = asElements(script);
 
-        return Buffer.isBuffer(hash);
+        return isBuffer(hash);
       })
       .map(({script}) => {
-        const [, hash] = decompile(script);
+        const [, hash] = asElements(script);
 
         const index = hash.toString('hex');
 
@@ -237,15 +242,15 @@ module.exports = args => {
       .find(({index}) => !!redeems[index]);
 
     // Find the output in the spending transaction that matches the input
-    const outW = spendsTx.outs
+    const outW = spendsTx.outputs
       .filter(({script}) => {
-        const [, scriptHash] = decompile(script);
+        const [, scriptHash] = asElements(script);
 
-        return Buffer.isBuffer(scriptHash);
+        return isBuffer(scriptHash);
       })
-      .map(({script, value}) => {
+      .map(({script, tokens}) => {
         // Get the hash being spent, either a P2SH or a P2WSH
-        const [, scriptHash] = decompile(script);
+        const [, scriptHash] = asElements(script);
 
         const hash = scriptHash.toString('hex');
 
@@ -253,33 +258,33 @@ module.exports = args => {
 
         const {derivations, redeem, witness} = matchingWitness;
 
-        return {derivations, hash, redeem, script, value, witness};
+        return {derivations, hash, redeem, script, tokens, witness};
       })
       .find(({hash}) => !!witnesses[hash]);
 
     const spending = args.transactions.find(transaction => {
-      return transactionId(transaction) === input.hash.toString('hex');
+      return transactionId(transaction) === input.id;
     });
 
-    const spendOut = txOuts(spending)[input.index];
+    const spendOut = txOuts(spending)[input.vout];
 
     if (!!outW && !!outW.witness) {
       utxo.witness_script = outW.witness.toString('hex');
     }
 
     if (!!spendOut) {
-      const [, spendScript] = decompile(spendOut.script);
+      const [, spendScript] = asElements(spendOut.script);
 
       // Look for a redeem script that matches this spend out script
       const redeemScript = (args.redeem_scripts || []).find(script => {
         // Exit early when there is no spend script
-        if (!Buffer.isBuffer(spendScript)) {
+        if (!isBuffer(spendScript)) {
           return false;
         }
 
-        const [push] = decompile(Buffer.from(script, 'hex'));
+        const [push] = asElements(script);
 
-        if (!Buffer.isBuffer(push)) {
+        if (!isBuffer(push)) {
           return false;
         }
 
@@ -287,14 +292,14 @@ module.exports = args => {
       });
 
       if (!!redeemScript) {
-        const [redeem] = decompile(Buffer.from(redeemScript, 'hex'));
+        const [redeem] = asElements(redeemScript);
 
         utxo.redeem_script = redeem.toString('hex');
 
-        const [push] = decompile(Buffer.from(redeemScript, 'hex'));
+        const [push] = asElements(redeemScript);
 
         if (!!push) {
-          const [, hash] = decompile(push);
+          const [, hash] = asElements(bufferAsHex(push));
 
           if (!!hash && !!witnesses[hash.toString('hex')]) {
             const {witness} = witnesses[hash.toString('hex')];
@@ -307,7 +312,9 @@ module.exports = args => {
 
     const nestedP2wpkh = (() => {
       try {
-        const [opHash160, hash, opEqual] = decompile(spendOut.script);
+        const elements = asElements(spendOut.script);
+
+        const [opHash160, hash, opEqual] = elements;
 
         const isP2shPush = isBuffer(hash) && hash.length === redeemHashLength;
 
@@ -316,7 +323,7 @@ module.exports = args => {
         }
 
         return args.redeem_scripts.find(redeem => {
-          const [pushedScript] = decompile(Buffer.from(redeem, 'hex'));
+          const [pushedScript] = asElements(redeem);
 
           return hash160(pushedScript).equals(hash);
         });
@@ -326,7 +333,7 @@ module.exports = args => {
     })();
 
     const isP2wkh = (() => {
-      const decompiled = decompile(spendOut.script);
+      const decompiled = asElements(spendOut.script);
 
       if (decompiled.length !== 2) {
         return false;
@@ -337,11 +344,11 @@ module.exports = args => {
       return push.length === publicKeyHashLength;
     })();
 
-    if (!!spendsTx.hasWitnesses() || isP2wkh || !!nestedP2wpkh) {
+    if (hasWitness(spendsTx) || isP2wkh || !!nestedP2wpkh) {
       // utxo.non_witness_utxo = spends.toString('hex');
       utxo.witness_utxo = {
-        script_pub: spendOut.script.toString('hex'),
-        tokens: spendOut.value,
+        script_pub: spendOut.script,
+        tokens: spendOut.tokens,
       };
     } else {
       utxo.non_witness_utxo = spends.toString('hex');
@@ -360,7 +367,7 @@ module.exports = args => {
     }
 
     if (isP2wkh) {
-      const [, hash] = decompile(spendOut.script);
+      const [, hash] = asElements(spendOut.script);
 
       const derivation = pubKeyHashes[hash.toString('hex')];
 
@@ -373,7 +380,7 @@ module.exports = args => {
   });
 
   // Encode inputs into key value pairs
-  tx.ins.forEach((txIn, vin) => {
+  tx.inputs.forEach((txIn, vin) => {
     const n = inputs[vin] || decoded.inputs[vin];
 
     // Look for a taproot input
@@ -591,7 +598,7 @@ module.exports = args => {
         const redeemScript = Buffer.from(n.redeem_script, 'hex');
 
         const redeemScriptPush = pushData({data: redeemScript});
-        const [sigsRequired] = decompile(redeemScript);
+        const [sigsRequired] = asElements(n.redeem_script);
 
         const requiredSignatureCount = sigsRequired - opNumberOffset;
 
@@ -620,7 +627,7 @@ module.exports = args => {
         const nullDummy = Buffer.from([OP_0]);
         const witnessScript = Buffer.from(n.witness_script, 'hex');
 
-        const [sigsRequired] = decompile(witnessScript);
+        const [sigsRequired] = asElements(n.witness_script);
         const witnessScriptPush = pushData({data: witnessScript});
 
         const requiredSignatureCount = sigsRequired - opNumberOffset;
@@ -683,11 +690,11 @@ module.exports = args => {
   });
 
   // Iterate through outputs to update output data
-  tx.outs.forEach(({script}) => {
+  tx.outputs.forEach(({script}) => {
     const out = {};
 
-    const [foundKey] = decompile(script)
-      .filter(Buffer.isBuffer)
+    const [foundKey] = asElements(script)
+      .filter(isBuffer)
       .map(n => pubKeyHashes[n.toString('hex')])
       .filter(n => !!n);
 
@@ -699,7 +706,7 @@ module.exports = args => {
   });
 
   // Iterate through outputs to add pairs as appropriate
-  tx.outs.forEach((out, vout) => {
+  tx.outputs.forEach((out, vout) => {
     const output = outputs[vout] || decoded.outputs[vout];
 
     if (!!output.bip32_derivation) {

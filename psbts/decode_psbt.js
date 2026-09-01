@@ -1,6 +1,8 @@
 const {createHash} = require('node:crypto');
 
 const {compactIntAsNumber} = require('@alexbosworth/blockchain');
+const {componentsOfTransaction} = require('@alexbosworth/blockchain');
+const {scriptAsScriptElements} = require('@alexbosworth/blockchain');
 
 const {bip32Derivation} = require('./../bip32');
 const {checkNonWitnessUtxo} = require('./../utxos');
@@ -8,17 +10,15 @@ const {checkWitnessUtxo} = require('./../utxos');
 const {decodeSignature} = require('./../signatures');
 const {keyCodeByteLength} = require('./constants');
 const parseTaprootTree = require('./parse_taproot_tree');
-const {script} = require('bitcoinjs-lib');
 const {sigHashByteLength} = require('./constants');
 const {taprootBip32} = require('./../bip32');
 const tokensAsNumber = require('./tokens_as_number');
 const {tokensByteLength} = require('./constants');
-const {Transaction} = require('bitcoinjs-lib');
 const types = require('./types');
 
+const asElements = script => scriptAsScriptElements({script}).elements;
 const bufferAsHex = buffer => buffer.toString('hex');
 const countGlobal = 1;
-const {decompile} = script;
 const globalSeparatorCode = parseInt(types.global.separator, 16);
 const hash160 = n => createHash('ripemd160').update(sha256(n)).digest();
 const isControlBlockLength = n => n >= 33 && n <= 4129 && (n - 33) % 32 === 0;
@@ -251,27 +251,29 @@ module.exports = ({ecp, psbt}) => {
           throw new Error('InvalidGlobalTransactionKeyType');
         }
 
-        const tx = Transaction.fromBuffer(value);
+        const {inputs, outputs} = componentsOfTransaction({
+          transaction: bufferAsHex(value),
+        });
 
-        decoded.inputs = Array(tx.ins.length).fill({});
-        decoded.outputs = Array(tx.outs.length).fill({});
+        decoded.inputs = Array(inputs.length).fill({});
+        decoded.outputs = Array(outputs.length).fill({});
         decoded.unsigned_transaction = value.toString('hex');
 
-        terminatorsExpected = tx.ins.length + tx.outs.length + [tx].length;
+        terminatorsExpected = inputs.length + outputs.length + countGlobal;
 
-        tx.ins.forEach(n => {
+        inputs.forEach(n => {
           if (!!n.script.length) {
             throw new Error('ExpectedEmptyScriptSigs')
           }
 
-          if (!!n.witness.length) {
+          if (!!(n.witness || []).length) {
             throw new Error('ExpectedEmptyWitnesses');
           }
 
           foundInputs.push(n);
         });
 
-        tx.outs.forEach(n => foundOutputs.push(n));
+        outputs.forEach(n => foundOutputs.push(n));
         break;
 
       default:
@@ -334,7 +336,7 @@ module.exports = ({ecp, psbt}) => {
         }
 
         // Check to make sure that the scriptsig is a reasonable script
-        if (!decompile(value)) {
+        if (!asElements(bufferAsHex(value))) {
           throw new Error('InvalidFinalScriptSig');
         }
 
@@ -352,7 +354,7 @@ module.exports = ({ecp, psbt}) => {
         const scriptWitness = value.slice(bytes);
 
         // Check to make sure that the final script witness is valid script
-        if (!decompile(scriptWitness)) {
+        if (!asElements(bufferAsHex(scriptWitness))) {
           throw new Error('InvalidScriptWitness');
         }
 
@@ -366,7 +368,7 @@ module.exports = ({ecp, psbt}) => {
         }
 
         try {
-          Transaction.fromBuffer(value);
+          componentsOfTransaction({transaction: bufferAsHex(value)});
         } catch (err) {
           throw new Error('ExpectedValidTransactionForNonWitnessUtxo');
         }
@@ -411,7 +413,7 @@ module.exports = ({ecp, psbt}) => {
         }
 
         // Make sure the redeem script is a reasonable script
-        if (!decompile(value)) {
+        if (!asElements(bufferAsHex(value))) {
           throw new Error('InvalidRedeemScript');
         }
 
@@ -503,7 +505,7 @@ module.exports = ({ecp, psbt}) => {
         }
 
         // Make sure that the witness script is a reasonable script
-        if (!decompile(value)) {
+        if (!asElements(bufferAsHex(value))) {
           throw new Error('InvalidWitnessScript');
         }
 
@@ -571,7 +573,7 @@ module.exports = ({ecp, psbt}) => {
         }
 
         // Make sure that the redeem script is a reasonable script
-        if (!decompile(value)) {
+        if (!asElements(bufferAsHex(value))) {
           throw new Error('InvalidOutputRedeemScript');
         }
 
@@ -612,7 +614,7 @@ module.exports = ({ecp, psbt}) => {
         }
 
         // Make sure that the witness script is a reasonable script
-        if (!decompile(value)) {
+        if (!asElements(bufferAsHex(value))) {
           throw new Error('InvalidOutputWitnessScript');
         }
 

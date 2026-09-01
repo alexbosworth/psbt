@@ -1,19 +1,21 @@
+const {componentsOfTransaction} = require('@alexbosworth/blockchain');
+const {idForTransaction} = require('@alexbosworth/blockchain');
+const {scriptAsScriptElements} = require('@alexbosworth/blockchain');
+
 const createPsbt = require('./create_psbt');
 const {isMultisig} = require('./../script');
 const {multisigDetails} = require('./../script');
-const {script} = require('bitcoinjs-lib');
-const {Transaction} = require('bitcoinjs-lib');
 const updatePsbt = require('./update_psbt');
 
+const asElements = script => scriptAsScriptElements({script}).elements;
 const bufferAsHex = buffer => buffer.toString('hex');
-const {decompile} = script;
 const hexAsBuffer = hex => Buffer.from(hex, 'hex');
 const isBech32Version = version => version !== undefined && version <= 16;
 const {isBuffer} = Buffer;
 const payToWitnessKeyOutLength = 20;
 const reversedBuffer = buffer => Buffer.from(buffer).reverse();
-const {SIGHASH_ALL} = Transaction;
-const transactionId = hex => Transaction.fromHex(hex).getId();
+const transactionId = hex => idForTransaction({transaction: hex}).id;
+const txOuts = tx => componentsOfTransaction({transaction: tx}).outputs;
 
 /** Convert a signed transaction to a signed PSBT
 
@@ -37,48 +39,39 @@ const transactionId = hex => Transaction.fromHex(hex).getId();
 module.exports = ({ecp, spending, transaction}) => {
   const redeemScripts = [];
   const signatures = [];
-  const tx = Transaction.fromHex(transaction);
+  const tx = componentsOfTransaction({transaction});
   const witnessScripts = [];
 
   const {version} = tx;
 
-  const outputs = tx.outs.map(({script, value}) => ({
-    script: bufferAsHex(script),
-    tokens: value,
-  }));
+  const outputs = tx.outputs;
 
-  const utxos = tx.ins.map(({hash, index, sequence}) => ({
-    sequence,
-    id: bufferAsHex(reversedBuffer(hash)),
-    vout: index,
-  }));
+  const utxos = tx.inputs.map(({id, sequence, vout}) => ({sequence, id, vout}));
 
   const {psbt} = createPsbt({outputs, utxos, version, timelock: tx.locktime});
 
-  tx.ins.forEach(({hash, index, script, witness}, vin) => {
-    const spends = spending.find(hex => {
-      return hexAsBuffer(transactionId(hex)).equals(reversedBuffer(hash));
-    });
+  tx.inputs.forEach(({id, script, vout, witness = []}, vin) => {
+    const spends = spending.find(hex => transactionId(hex) === id);
 
-    const out = Transaction.fromHex(spends).outs[index].script
+    const out = txOuts(spends)[vout].script;
 
-    const [version, push] = decompile(out);
+    const [version, push] = asElements(out);
 
     // Output is a native segwit pay to witness public key hash
     if (isBech32Version(version) && push.length === payToWitnessKeyOutLength) {
       const [signature, publicKey] = witness;
 
-      const [hashType] = reversedBuffer(signature);
+      const [hashType] = reversedBuffer(hexAsBuffer(signature));
 
       return signatures.push({
         vin,
+        signature,
         hash_type: hashType,
-        public_key: bufferAsHex(publicKey),
-        signature: bufferAsHex(signature),
+        public_key: publicKey,
       });
     }
 
-    const {multisig} = multisigDetails({script: bufferAsHex(script)});
+    const {multisig} = multisigDetails({script});
 
     if (!!multisig) {
       multisig.signatures.forEach(signature => {
@@ -96,16 +89,16 @@ module.exports = ({ecp, spending, transaction}) => {
     const [witnessScript] = witness.slice().reverse();
 
     if (!!witness && !!script.length) {
-      redeemScripts.push(bufferAsHex(script));
+      redeemScripts.push(script);
     }
 
     if (!!witnessScript) {
-      witnessScripts.push(bufferAsHex(witnessScript));
+      witnessScripts.push(witnessScript);
     }
 
     // Native witness multisig
-    if (!!witnessScript && isMultisig({script: bufferAsHex(witnessScript)})) {
-      const [, ...witnessMulti] = decompile(witnessScript).slice().reverse();
+    if (!!witnessScript && isMultisig({script: witnessScript})) {
+      const [, ...witnessMulti] = asElements(witnessScript).slice().reverse();
 
       const [n, m] = witnessMulti.slice().reverse().filter(n => !isBuffer(n));
 
@@ -120,42 +113,42 @@ module.exports = ({ecp, spending, transaction}) => {
       const witnessSignatures = witnessElements.filter(n => !!n.length);
 
       return witnessSignatures.reverse().forEach((signature, i) => {
-        const [hashType] = reversedBuffer(signature);
+        const [hashType] = reversedBuffer(hexAsBuffer(signature));
 
         return signatures.push({
           vin,
+          signature,
           hash_type: hashType,
           public_key: publicKeys[i],
-          signature: bufferAsHex(signature),
         });
       });
     }
 
     // Pay to witness public key nested
     if (!!witnessScript && !!script.length) {
-      const [redeem] = decompile(script).reverse();
+      const [redeem] = asElements(script).reverse();
 
-      const [ver, push] = decompile(redeem);
+      const [ver, push] = asElements(bufferAsHex(redeem));
 
       if (isBech32Version(ver) && push.length === payToWitnessKeyOutLength) {
         const [signature, publicKey] = witness;
 
-        const [hashType] = reversedBuffer(signature);
+        const [hashType] = reversedBuffer(hexAsBuffer(signature));
 
         // There is no witness script for a p2wpkh, just signature, pubkey
         witnessScripts.length = Number();
 
         return signatures.push({
           vin,
+          signature,
           hash_type: hashType,
-          public_key: bufferAsHex(publicKey),
-          signature: bufferAsHex(signature),
+          public_key: publicKey,
         });
       }
     }
 
     // The output script is a pay to public key hash
-    const [signature, publicKey] = decompile(script);
+    const [signature, publicKey] = asElements(script);
 
     if (!signature || !publicKey) {
       throw new Error('UnsupportedTransactionSpendType');

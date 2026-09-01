@@ -1,6 +1,6 @@
 # Versions
 
-## 6.0.2
+## 6.0.3
 
 - Require node.js 22 or higher
 

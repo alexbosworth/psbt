@@ -1,17 +1,21 @@
 const {createHash} = require('node:crypto');
 
+const {componentsOfTransaction} = require('@alexbosworth/blockchain');
+const {nonWitnessHashToSign} = require('@alexbosworth/blockchain');
 const {p2pkhOutputScript} = require('@alexbosworth/blockchain');
+const {scriptAsScriptElements} = require('@alexbosworth/blockchain');
+const {v0HashToSign} = require('@alexbosworth/blockchain');
 
 const decodePsbt = require('./decode_psbt');
 const {encodeSignature} = require('./../signatures');
 const networks = require('./networks');
-const {script} = require('bitcoinjs-lib');
-const {Transaction} = require('bitcoinjs-lib');
 const updatePsbt = require('./update_psbt');
 
 const asBuffer = n => Buffer.from(n);
-const {decompile} = script;
-const defaultSighashType = Transaction.SIGHASH_ALL;
+const asElements = script => scriptAsScriptElements({script}).elements;
+const bufferAsHex = buffer => buffer.toString('hex');
+const defaultSighashType = 0x01;
+const hexAsBuffer = hex => Buffer.from(hex, 'hex');
 const hash160 = n => createHash('ripemd160').update(sha256(n)).digest();
 const sha256 = n => createHash('sha256').update(n).digest();
 
@@ -53,7 +57,6 @@ module.exports = args => {
     throw err;
   }
 
-  const tx = Transaction.fromHex(decoded.unsigned_transaction);
   const signatures = [];
 
   decoded.inputs.forEach((input, vin) => {
@@ -65,17 +68,20 @@ module.exports = args => {
       if (!!input.witness_utxo && !scripts.filter(n => !!n).length) {
         const scriptPub = input.witness_utxo.script_pub;
 
-        const [, pkHash] = decompile(Buffer.from(scriptPub, 'hex'));
+        const [, pkHash] = asElements(scriptPub);
 
         const keyForHash = pkHashes[pkHash.toString('hex')];
 
         [keyForHash].filter(n => !!n).forEach(signingKey => {
-          const hashToSign = tx.hashForWitnessV0(
+          const {hash} = v0HashToSign({
             vin,
-            p2pkhOutputScript({hash: pkHash}).script,
-            input.witness_utxo.tokens,
-            input.sighash_type || defaultSighashType
-          );
+            script: bufferAsHex(p2pkhOutputScript({hash: pkHash}).script),
+            sighash: input.sighash_type || defaultSighashType,
+            tokens: input.witness_utxo.tokens,
+            transaction: decoded.unsigned_transaction,
+          });
+
+          const hashToSign = hexAsBuffer(hash);
 
           const sig = encodeSignature({
             flag: input.sighash_type || defaultSighashType,
@@ -92,8 +98,8 @@ module.exports = args => {
       }
 
       // Go through the scripts that match keys and add signatures
-      scripts.filter(n => !!n).map(n => Buffer.from(n, 'hex')).forEach(n => {
-        const buffers = decompile(n).filter(Buffer.isBuffer);
+      scripts.filter(n => !!n).forEach(n => {
+        const buffers = asElements(n).filter(Buffer.isBuffer);
 
         // Lookup data pushes in the key and key hash indexes
         const keysToSign = buffers.map(b => b.toString('hex')).map(k => {
@@ -107,42 +113,70 @@ module.exports = args => {
 
           // Witness input spending a witness utxo
           if (!!input.witness_script && !!input.witness_utxo) {
-            const script = Buffer.from(input.witness_script, 'hex');
-            const tokens = input.witness_utxo.tokens;
+            const {hash} = v0HashToSign({
+              vin,
+              script: input.witness_script,
+              sighash: sighashType,
+              tokens: input.witness_utxo.tokens,
+              transaction: decoded.unsigned_transaction,
+            });
 
-            hashToSign = tx.hashForWitnessV0(vin, script, tokens, sighashType);
+            hashToSign = hexAsBuffer(hash);
           } else if (!!input.witness_script && !!input.redeem_script) {
             // Nested witness input
-            const nonWitnessUtxo = Transaction.fromHex(input.non_witness_utxo);
+            const nonWitnessUtxo = componentsOfTransaction({
+              transaction: input.non_witness_utxo,
+            });
             const redeemScript = Buffer.from(input.redeem_script, 'hex');
-            const script = Buffer.from(input.witness_script, 'hex');
 
             const nestedScriptHash = hash160(redeemScript);
 
-            const tx = Transaction.fromHex(decoded.unsigned_transaction);
-
             // Find the value for the sigHash in the non-witness utxo
-            const {value} = nonWitnessUtxo.outs.find(n => {
-              return decompile(n.script)
+            const {tokens} = nonWitnessUtxo.outputs.find(n => {
+              return asElements(n.script)
                 .filter(Buffer.isBuffer)
                 .find(n => n.equals(nestedScriptHash));
             });
 
-            hashToSign = tx.hashForWitnessV0(vin, script, value, sighashType);
+            const {hash} = v0HashToSign({
+              vin,
+              tokens,
+              script: input.witness_script,
+              sighash: sighashType,
+              transaction: decoded.unsigned_transaction,
+            });
+
+            hashToSign = hexAsBuffer(hash);
           } else if (!!input.witness_script && !!input.non_witness_utxo) {
-            const txWithOutputs = Transaction.fromHex(input.non_witness_utxo);
+            const txWithOutputs = componentsOfTransaction({
+              transaction: input.non_witness_utxo,
+            });
 
-            const vout = tx.ins[vin].index;
+            const tx = componentsOfTransaction({
+              transaction: decoded.unsigned_transaction,
+            });
 
-            const script = Buffer.from(input.witness_script, 'hex');
-            const tokens = txWithOutputs.outs[vout].value;
+            const {vout} = tx.inputs[vin];
 
-            hashToSign = tx.hashForWitnessV0(vin, script, tokens, sighashType);
+            const {hash} = v0HashToSign({
+              vin,
+              script: input.witness_script,
+              sighash: sighashType,
+              tokens: txWithOutputs.outputs[vout].tokens,
+              transaction: decoded.unsigned_transaction,
+            });
+
+            hashToSign = hexAsBuffer(hash);
           } else {
             // Non-witness script
-            const redeem = Buffer.from(input.redeem_script, 'hex');
+            const {hash} = nonWitnessHashToSign({
+              vin,
+              script: input.redeem_script,
+              sighash: sighashType,
+              transaction: decoded.unsigned_transaction,
+            });
 
-            hashToSign = tx.hashForSignature(vin, redeem, sighashType);
+            hashToSign = hexAsBuffer(hash);
           }
 
           const sig = encodeSignature({
@@ -172,16 +206,26 @@ module.exports = args => {
       const sighashType = input.sighash_type;
 
       if (!!input.witness_script && !!input.witness_utxo) {
-        const script = Buffer.from(input.witness_script, 'hex');
-        const tokens = input.witness_utxo.tokens;
+        const {hash} = v0HashToSign({
+          vin,
+          script: input.witness_script,
+          sighash: sighashType,
+          tokens: input.witness_utxo.tokens,
+          transaction: decoded.unsigned_transaction,
+        });
 
-        hashToSign = tx.hashForWitnessV0(vin, script, tokens, sighashType);
+        hashToSign = hexAsBuffer(hash);
       }
 
       if (!!input.non_witness_utxo && !!input.redeem_script) {
-        const redeemScript = Buffer.from(input.redeem_script, 'hex');
+        const {hash} = nonWitnessHashToSign({
+          vin,
+          script: input.redeem_script,
+          sighash: sighashType,
+          transaction: decoded.unsigned_transaction,
+        });
 
-        hashToSign = tx.hashForSignature(vin, redeemScript, sighashType);
+        hashToSign = hexAsBuffer(hash);
       }
 
       if (!hashToSign) {

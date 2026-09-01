@@ -1,11 +1,12 @@
+const {componentsOfTransaction} = require('@alexbosworth/blockchain');
+const {scriptAsScriptElements} = require('@alexbosworth/blockchain');
 const {OP_EQUAL} = require('bitcoin-ops');
 const {OP_HASH160} = require('bitcoin-ops');
 
 const {p2shHashByteLength} = require('./constants');
-const {script} = require('bitcoinjs-lib');
-const {Transaction} = require('bitcoinjs-lib');
 
-const {decompile} = script;
+const asElements = script => scriptAsScriptElements({script}).elements;
+const bufferAsHex = buffer => buffer.toString('hex');
 
 /** Check that an input's non witness utxo is valid
 
@@ -31,9 +32,11 @@ module.exports = ({hash, script, utxo}) => {
     throw new Error('ExpectedNonWitnessUtxoBuffer');
   }
 
-  const scriptPubHashes = Transaction.fromBuffer(utxo).outs.map(out => {
+  const {outputs} = componentsOfTransaction({transaction: bufferAsHex(utxo)});
+
+  const scriptPubHashes = outputs.map(out => {
     // It's expected that the scriptPub be a normal P2SH script
-    const [hash160, scriptHash, isEqual, extra] = decompile(out.script);
+    const [hash160, scriptHash, isEqual, extra] = asElements(out.script);
 
     if (hash160 !== OP_HASH160) {
       return null;

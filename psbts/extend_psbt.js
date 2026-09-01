@@ -1,3 +1,4 @@
+const {componentsOfTransaction} = require('@alexbosworth/blockchain');
 const {numberAsCompactInt} = require('@alexbosworth/blockchain');
 
 const decodePsbt = require('./decode_psbt');
@@ -6,14 +7,12 @@ const {encodeSignature} = require('./../signatures');
 const {encodeDerivations} = require('./../bip32');
 const sighashAsBuffer = require('./sighash_as_buffer');
 const tokensAsBuffer = require('./tokens_as_buffer');
-const {Transaction} = require('bitcoinjs-lib');
 const types = require('./types');
 
 const {concat} = Buffer;
 const encode = number => numberAsCompactInt({number}).encoded;
 const hexAsBuffer = hex => Buffer.from(hex, 'hex');
 const {isArray} = Array;
-const {fromHex} = Transaction;
 
 /** Extend a created PSBT template with additional fields
 
@@ -67,19 +66,21 @@ module.exports = args => {
   const decoded = decodePsbt({ecp: args.ecp, psbt: args.psbt});
   const pairs = [];
 
-  const tx = fromHex(decoded.unsigned_transaction);
+  const tx = componentsOfTransaction({
+    transaction: decoded.unsigned_transaction,
+  });
 
   // The transaction in network serialization
   pairs.push({
     type: hexAsBuffer(types.global.unsigned_tx),
-    value: tx.toBuffer(),
+    value: hexAsBuffer(decoded.unsigned_transaction),
   });
 
   // End of global type values
   pairs.push({separator: true});
 
   // Iterate through transaction inputs and fill in values
-  tx.ins.forEach(({hash, index, sequence}, vin) => {
+  tx.inputs.forEach((txIn, vin) => {
     const input = args.inputs[vin];
 
     // BIP 32 data for keys involved in signing for this input
@@ -188,7 +189,7 @@ module.exports = args => {
   });
 
   // Iterate through the transaction outputs and fill in values
-  tx.outs.forEach(({script, value}) => {
+  tx.outputs.forEach(txOut => {
     // Output pairs termination
     return pairs.push({separator: true});
   });

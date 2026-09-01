@@ -3,7 +3,6 @@ const test = require('node:test');
 const {throws} = require('node:assert').strict;
 
 const tinysecp = require('tiny-secp256k1');
-const {Transaction} = require('bitcoinjs-lib');
 
 const {decodePsbt} = require('./../../');
 const {updatePsbt} = require('./../../');
@@ -124,12 +123,12 @@ const tests = {
       sighashes: [
         {
           id: '1dea7cd05979072a3578cab271c02244ea8a090bbb46aa680a65ecd027048d83',
-          sighash: Transaction.SIGHASH_ALL,
+          sighash: 0x01,
           vout: 1,
         },
         {
           id: '75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858',
-          sighash: Transaction.SIGHASH_ALL,
+          sighash: 0x01,
           vout: 0,
         },
       ],

@@ -1,3 +1,4 @@
+const {scriptAsScriptElements} = require('@alexbosworth/blockchain');
 const {OP_EQUAL} = require('bitcoin-ops');
 const {OP_HASH160} = require('bitcoin-ops');
 
@@ -6,10 +7,9 @@ const {nestedScriptPubElementsLen} = require('./constants');
 const {p2pkhHashByteLength} = require('./constants');
 const {p2shHashByteLength} = require('./constants');
 const {p2wshHashByteLength} = require('./constants');
-const {script} = require('bitcoinjs-lib');
 const {witnessScriptPubElementsLen} = require('./constants');
 
-const {decompile} = script;
+const asElements = script => scriptAsScriptElements({script}).elements;
 
 /** Check that an input's witness UTXO is valid
 
@@ -27,10 +27,7 @@ module.exports = ({hash, redeem, script}) => {
     throw new Error('ExpectedScriptInWitnessUtxoCheck');
   }
 
-  const redeemScript = !redeem ? null : Buffer.from(redeem, 'hex');
-  const scriptPub = Buffer.from(script, 'hex');
-
-  const decompiledScriptPub = decompile(scriptPub);
+  const decompiledScriptPub = asElements(script);
 
   switch (decompiledScriptPub.length) {
   case nestedScriptPubElementsLen:
@@ -53,7 +50,7 @@ module.exports = ({hash, redeem, script}) => {
     }
 
     {
-      const [version, redeemScriptHash, extra] = decompile(redeemScript);
+      const [version, redeemScriptHash, extra] = asElements(redeem);
 
       try {
         checkWitnessVersion({version});

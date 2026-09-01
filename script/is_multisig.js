@@ -1,10 +1,10 @@
+const {scriptAsScriptElements} = require('@alexbosworth/blockchain');
 const {OP_CHECKMULTISIG} = require('bitcoin-ops');
 
 const {maxKeyCount} = require('./constants');
 const {opNumberOffset} = require('./constants');
-const {script} = require('bitcoinjs-lib');
 
-const {decompile} = script;
+const asElements = script => scriptAsScriptElements({script}).elements;
 
 /** Determine if a script is a standard multisig script
 
@@ -20,7 +20,7 @@ module.exports = ({script}) => {
     return false;
   }
 
-  const decompiled = decompile(Buffer.from(script, 'hex'));
+  const decompiled = asElements(script);
 
   if (!decompiled) {
     return false;

@@ -1,17 +1,19 @@
+const {componentsOfTransaction} = require('@alexbosworth/blockchain');
+const {idForTransaction} = require('@alexbosworth/blockchain');
 const {numberAsCompactInt} = require('@alexbosworth/blockchain');
 
 const createPsbt = require('./create_psbt');
 const extendPsbt = require('./extend_psbt');
 const {pushData} = require('./../script');
-const {Transaction} = require('bitcoinjs-lib');
 
 const bufferAsHex = buffer => buffer.toString('hex');
 const {concat} = Buffer;
 const encode = number => numberAsCompactInt({number}).encoded;
-const {fromHex} = Transaction;
-const hashAsTransactionId = hash => hash.slice().reverse().toString('hex');
+const hexAsBuffer = hex => Buffer.from(hex, 'hex');
 const {isArray} = Array;
 const isTaproot = n => n.length === 68 && parseInt(n.slice(0, 2), 16) >= 1;
+const transactionId = hex => idForTransaction({transaction: hex}).id;
+const txOuts = tx => componentsOfTransaction({transaction: tx}).outputs;
 
 /** Convert a raw transaction into a finalized PSBT ready for extraction
 
@@ -39,28 +41,20 @@ module.exports = ({ecp, spending, transaction, utxos}) => {
     throw new Error('ExpectedTransactionToUnextractIntoFinalizedPsbt');
   }
 
-  const spendingTxs = spending.map(fromHex);
-  const tx = fromHex(transaction);
+  const tx = componentsOfTransaction({transaction});
 
-  const outputs = tx.outs.map(({script, value}) => ({
-    script: bufferAsHex(script),
-    tokens: value,
-  }));
+  const outputs = tx.outputs;
 
   const {psbt} = createPsbt({
     outputs,
     timelock: tx.locktime,
-    utxos: tx.ins.map(({hash, index, sequence}) => ({
-      sequence,
-      id: hashAsTransactionId(hash),
-      vout: index,
-    })),
+    utxos: tx.inputs.map(({id, sequence, vout}) => ({sequence, id, vout})),
     version: tx.version,
   });
 
-  const inputs = tx.ins.map(({hash, index, script, witness}, vin) => {
+  const inputs = tx.inputs.map(({id, script, vout, witness = []}, vin) => {
     const reference = (utxos || []).find(n => n.vin === vin);
-    const spend = spendingTxs.find(n => n.getId() === bufferAsHex(hash));
+    const spend = spending.find(n => transactionId(n) === id);
 
     if (!spend && !reference) {
       throw new Error('ExpectedSpendingTransactionsForAllInputs');
@@ -68,16 +62,16 @@ module.exports = ({ecp, spending, transaction, utxos}) => {
 
     const wScript = concat([]
       .concat(encode(witness.length))
-      .concat(witness.map(data => pushData({data}))));
+      .concat(witness.map(data => pushData({data: hexAsBuffer(data)}))));
 
     const utxo = reference || {
-      script_pub: bufferAsHex(spend.outs[index].script),
-      tokens: spend.outs[index].value,
+      script_pub: txOuts(spend)[vout].script,
+      tokens: txOuts(spend)[vout].tokens,
     };
 
     return {
-      non_witness_utxo: isTaproot(utxo.script_pub) ? undefined : spend.toHex(),
-      final_scriptsig: bufferAsHex(script) || undefined,
+      non_witness_utxo: isTaproot(utxo.script_pub) ? undefined : spend,
+      final_scriptsig: script || undefined,
       final_scriptwitness: !!witness.length ? bufferAsHex(wScript) : undefined,
       witness_utxo: !!witness.length ? utxo : undefined,
     };

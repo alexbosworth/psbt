@@ -1,10 +1,12 @@
-const isMultisig = require('./is_multisig');
-const {script} = require('bitcoinjs-lib');
+const {scriptAsScriptElements} = require('@alexbosworth/blockchain');
 
+const isMultisig = require('./is_multisig');
+
+const asElements = script => scriptAsScriptElements({script}).elements;
 const bufferAsHex = buffer => buffer.toString('hex');
-const {decompile} = script;
 const hexAsBuffer = hex => Buffer.from(hex, 'hex');
 const {isBuffer} = Buffer;
+const isNotBuffer = n => !isBuffer(n);
 const reversedBuffer = buffer => Buffer.from(buffer).reverse();
 
 /** Get multisig details from a scriptSig
@@ -30,7 +32,7 @@ module.exports = ({script}) => {
     return {};
   }
 
-  const [redeemScript, ...elements] = decompile(hexAsBuffer(script)).reverse();
+  const [redeemScript, ...elements] = asElements(script).reverse();
 
   const signatures = elements.filter(isBuffer).map(bufferAsHex).reverse();
 
@@ -42,8 +44,8 @@ module.exports = ({script}) => {
     return {};
   }
 
-  const count = decompile(hexAsBuffer(redeemScript)).filter(n => !isBuffer(n));
-  const keys = decompile(hexAsBuffer(redeemScript)).filter(isBuffer);
+  const count = asElements(bufferAsHex(redeemScript)).filter(isNotBuffer);
+  const keys = asElements(bufferAsHex(redeemScript)).filter(isBuffer);
 
   const [required, total] = count;
 

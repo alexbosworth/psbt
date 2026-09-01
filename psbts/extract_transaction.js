@@ -1,9 +1,16 @@
+const {componentsOfTransaction} = require('@alexbosworth/blockchain');
+const {scriptAsScriptElements} = require('@alexbosworth/blockchain');
+const {transactionFromComponents} = require('@alexbosworth/blockchain');
+
 const decodePsbt = require('./decode_psbt');
 const numberAsBuffer = require('./number_as_buffer');
-const {script} = require('bitcoinjs-lib');
-const {Transaction} = require('bitcoinjs-lib');
 
-const {decompile} = script;
+const asElements = script => scriptAsScriptElements({script}).elements;
+const bufferAsHex = buffer => buffer.toString('hex');
+const emptyScriptSig = '';
+const emptyScriptWitness = '';
+const emptyStackElement = '';
+const {isBuffer} = Buffer;
 
 /** Extract a transaction from a finalized PSBT
 
@@ -29,37 +36,46 @@ module.exports = ({ecp, psbt}) => {
     throw err;
   }
 
-  const tx = Transaction.fromHex(decoded.unsigned_transaction);
+  const tx = componentsOfTransaction({
+    transaction: decoded.unsigned_transaction,
+  });
 
-  decoded.inputs.forEach((n, vin) => {
-    if (!n.final_scriptsig && !n.final_scriptwitness) {
+  // Attach every input's finalized scriptsig and witness to form the inputs
+  const inputs = tx.inputs.map((txIn, vin) => {
+    const input = decoded.inputs[vin];
+
+    if (!input.final_scriptsig && !input.final_scriptwitness) {
       throw new Error('ExpectedFinalScriptSigsAndWitnesses');
     }
 
-    if (!!n.final_scriptsig) {
-      tx.setInputScript(vin, Buffer.from(n.final_scriptsig, 'hex'));
-    }
+    const scriptWitness = input.final_scriptwitness || emptyScriptWitness;
 
-    if (!!n.final_scriptwitness) {
-      const finalScriptWitness = Buffer.from(n.final_scriptwitness, 'hex');
+    // Convert the final script witness into witness stack elements
+    const witness = asElements(scriptWitness).map(element => {
+      if (!element) {
+        return emptyStackElement;
+      }
 
-      const witnessElements = decompile(finalScriptWitness).map(n => {
-        if (!n) {
-          return Buffer.from([]);
-        }
+      if (isBuffer(element)) {
+        return bufferAsHex(element);
+      }
 
-        if (Buffer.isBuffer(n)) {
-          return n;
-        }
+      return bufferAsHex(numberAsBuffer({number: element}));
+    });
 
-        return numberAsBuffer({number: n});
-      });
-
-      tx.setWitness(vin, decompile(witnessElements));
-    }
-
-    return;
+    return {
+      witness,
+      id: txIn.id,
+      script: input.final_scriptsig || emptyScriptSig,
+      sequence: txIn.sequence,
+      vout: txIn.vout,
+    };
   });
 
-  return {transaction: tx.toHex()};
+  return transactionFromComponents({
+    inputs,
+    locktime: tx.locktime,
+    outputs: tx.outputs,
+    version: tx.version,
+  });
 };

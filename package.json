@@ -1,10 +1,9 @@
 {
   "author": "Alex Bosworth",
   "dependencies": {
-    "@alexbosworth/blockchain": "4.5.3",
+    "@alexbosworth/blockchain": "4.7.2",
     "bip66": "2.0.0",
     "bitcoin-ops": "1.4.1",
-    "bitcoinjs-lib": "6.1.7",
     "pushdata-bitcoin": "1.0.1"
   },
   "description": "Methods for working with BIP 174 PSBTs",
@@ -27,5 +26,5 @@
   "scripts": {
     "test": "node --experimental-test-coverage --test"
   },
-  "version": "6.0.2"
+  "version": "6.0.3"
 }
