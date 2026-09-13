@@ -1,7 +1,7 @@
 {
   "author": "Alex Bosworth",
   "dependencies": {
-    "@alexbosworth/blockchain": "4.7.2",
+    "@alexbosworth/blockchain": "4.8.0",
     "bip66": "2.0.0",
     "bitcoin-ops": "1.4.1",
     "pushdata-bitcoin": "1.0.1"
@@ -26,5 +26,5 @@
   "scripts": {
     "test": "node --experimental-test-coverage --test"
   },
-  "version": "6.0.3"
+  "version": "6.0.4"
 }
