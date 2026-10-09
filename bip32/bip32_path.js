@@ -11,7 +11,7 @@ const fingerprintLen = [fingerprintByteLength].length;
 /** Encode a BIP32 path
 
   {
-    path: <BIP 32 Path String>
+    [path]: <BIP 32 Path String>
   }
 
   @returns
@@ -19,6 +19,11 @@ const fingerprintLen = [fingerprintByteLength].length;
 */
 module.exports = ({path}) => {
   const byteLength = bip32KeyByteLength;
+
+  // The master key has no path elements after its fingerprint
+  if (!path) {
+    return Buffer.alloc(0);
+  }
 
   return concat(path.split(bip32PathSeparator).slice(fingerprintLen).map(n => {
     const len = hardenedMarker.length;

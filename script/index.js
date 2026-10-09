@@ -1,5 +1,5 @@
-const isMultisig = require('./is_multisig');
-const multisigDetails = require('./multisig_details');
+const checkedKeys = require('./checked_keys');
 const pushData = require('./push_data');
+const scriptTemplate = require('./script_template');
 
-module.exports = {isMultisig, multisigDetails, pushData};
+module.exports = {checkedKeys, pushData, scriptTemplate};

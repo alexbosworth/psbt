@@ -3,35 +3,27 @@ const {fingerprintByteLength} = require('./constants');
 
 /** Decode BIP32 Derivation Data
 
+  The public key is expected to already be checked as a valid public key
+
   {
     derivation: <BIP 32 Derivation Buffer Object>
-    ecp: <ECPair Object>
     key: <Public Key Buffer Object>
   }
 
   @throws
-  <InvalidBip32Key Error>
+  <Error>
 
   @returns
   {
     fingerprint: <BIP32 Fingerprint Hex String>
-    path: <BIP32 Derivation Path Child/Hardened Child/Index String>
+    [path]: <BIP32 Derivation Path Child/Hardened Child/Index String>
     public_key: <Public Key Hex String>
   }
 */
-module.exports = ({derivation, ecp, key}) => {
-  let childKey;
-
-  // Derive the public key from the public key bytes
-  try {
-    childKey = ecp.fromPublicKey(key);
-  } catch (err) {
-    throw new Error('InvalidBip32Key');
-  }
-
+module.exports = ({derivation, key}) => {
   return {
     path: derivationAsPath({derivation}).path,
     fingerprint: derivation.slice(0, fingerprintByteLength).toString('hex'),
-    public_key: Buffer.from(childKey.publicKey).toString('hex'),
+    public_key: key.toString('hex'),
   };
 };

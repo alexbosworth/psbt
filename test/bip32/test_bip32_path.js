@@ -10,6 +10,16 @@ const tests = {
     msg: 'A deep path is encoded',
     result: {path: '5400008000000080000000800100000000020000'},
   },
+  a_master_key_without_a_path_is_encoded: {
+    args: {},
+    msg: 'A master key with no path is encoded with no path elements',
+    result: {path: ''},
+  },
+  a_master_key_path_is_encoded: {
+    args: {path: 'm'},
+    msg: 'A master key path is encoded with no path elements',
+    result: {path: ''},
+  },
   a_path_with_a_single_unhardened_child_is_encoded: {
     args: {path: 'm/0'},
     msg: 'A path with a single unhardened child is encoded',

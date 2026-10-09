@@ -10,6 +10,9 @@ const {sigByteLength} = require('./constants');
     signature: <Signature Buffer Object>
   }
 
+  @throws
+  <Error>
+
   @returns
   {
     hash_type: <Hash Type Number>

@@ -1,21 +1,23 @@
-const {componentsOfTransaction} = require('@alexbosworth/blockchain');
-const {scriptAsScriptElements} = require('@alexbosworth/blockchain');
 const {transactionFromComponents} = require('@alexbosworth/blockchain');
 
 const decodePsbt = require('./decode_psbt');
-const numberAsBuffer = require('./number_as_buffer');
+const {legacyTransactionComponents} = require('./../transactions');
+const {parseWitnessElements} = require('./../transactions');
 
-const asElements = script => scriptAsScriptElements({script}).elements;
 const bufferAsHex = buffer => buffer.toString('hex');
 const emptyScriptSig = '';
 const emptyScriptWitness = '';
-const emptyStackElement = '';
-const {isBuffer} = Buffer;
+const hexAsBuffer = hex => Buffer.from(hex, 'hex');
 
 /** Extract a transaction from a finalized PSBT
 
+  Every input needs a final scriptSig or a final script witness, either of
+  which can be empty. A transaction needs inputs and outputs to be extracted.
+
+  The transaction is serialized with witnesses when an input has a final
+  script witness with at least one element, even if the element is empty.
+
   {
-    ecp: <ECPair Object>
     psbt: <BIP 174 Encoded PSBT Hex String>
   }
 
@@ -27,41 +29,43 @@ const {isBuffer} = Buffer;
     transaction: <Hex Serialized Transaction String>
   }
 */
-module.exports = ({ecp, psbt}) => {
-  let decoded;
+module.exports = ({psbt}) => {
+  const decoded = decodePsbt({psbt});
 
-  try {
-    decoded = decodePsbt({ecp, psbt});
-  } catch (err) {
-    throw err;
-  }
-
-  const tx = componentsOfTransaction({
+  const tx = legacyTransactionComponents({
     transaction: decoded.unsigned_transaction,
   });
+
+  // A transaction without inputs would be read as a witness transaction
+  if (!tx.inputs.length) {
+    throw new Error('ExpectedInputsToExtractTransaction');
+  }
+
+  // A transaction without outputs can never be valid
+  if (!tx.outputs.length) {
+    throw new Error('ExpectedOutputsToExtractTransaction');
+  }
 
   // Attach every input's finalized scriptsig and witness to form the inputs
   const inputs = tx.inputs.map((txIn, vin) => {
     const input = decoded.inputs[vin];
 
-    if (!input.final_scriptsig && !input.final_scriptwitness) {
+    // An empty final script is still a final script
+    const hasScriptSig = input.final_scriptsig !== undefined;
+    const hasWitness = input.final_scriptwitness !== undefined;
+
+    if (!hasScriptSig && !hasWitness) {
       throw new Error('ExpectedFinalScriptSigsAndWitnesses');
     }
 
     const scriptWitness = input.final_scriptwitness || emptyScriptWitness;
 
-    // Convert the final script witness into witness stack elements
-    const witness = asElements(scriptWitness).map(element => {
-      if (!element) {
-        return emptyStackElement;
-      }
-
-      if (isBuffer(element)) {
-        return bufferAsHex(element);
-      }
-
-      return bufferAsHex(numberAsBuffer({number: element}));
+    // Split the final script witness into elements by their stated lengths
+    const {elements} = parseWitnessElements({
+      encoded: hexAsBuffer(scriptWitness),
     });
+
+    const witness = elements.map(bufferAsHex);
 
     return {
       witness,

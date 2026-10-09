@@ -42,6 +42,11 @@ module.exports = ({type, value}) => {
   // Finished reading the count of leaf hashes
   cursor.push(leafHashesCount.bytes);
 
+  // The leaf hashes must all be present before allocating a list for them
+  if (leafHashesCount.number * sizeHash > val.length - sumOf(cursor)) {
+    throw new Error('UnexpectedLeafHashesCountForTaprootDerivation');
+  }
+
   const leafHashes = [...Array(leafHashesCount.number)].map((_, i) => {
     return bufferAsHex(slice(val, sumOf(cursor) + (i * sizeHash), sizeHash));
   });

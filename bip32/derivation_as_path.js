@@ -10,12 +10,24 @@ const {floor} = Math;
     derivation: <Derivation Buffer Object>
   }
 
+  @throws
+  <Error>
+
   @returns
   {
     [path]: <Path String>
   }
 */
 module.exports = ({derivation}) => {
+  // A key origin is a fingerprint followed by whole 32-bit path elements
+  if (derivation.length < fingerprintByteLength) {
+    throw new Error('ExpectedFingerprintInBip32Derivation');
+  }
+
+  if ((derivation.length - fingerprintByteLength) % bip32KeyByteLength) {
+    throw new Error('ExpectedCompletePathElementsInBip32Derivation');
+  }
+
   if (derivation.length === fingerprintByteLength) {
     return {};
   }

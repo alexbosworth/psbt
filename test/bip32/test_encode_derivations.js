@@ -55,6 +55,41 @@ const tests = {
     msg: 'An empty derivations list is encoded as empty lists',
     result: {legacy: [], taproot: []},
   },
+  an_uncompressed_key_and_a_master_key_are_encoded: {
+    args: {
+      bip32_derivations: [
+        {
+          fingerprint: '00000005',
+          path: 'm/1',
+          public_key: '0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959' +
+            'f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a6855419' +
+            '9c47d08ffb10d4b8',
+        },
+        {
+          fingerprint: '00000006',
+          public_key: '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959' +
+            'f2815b16f81798',
+        },
+      ],
+    },
+    msg: 'Uncompressed keys and master keys without a path are encoded',
+    result: {
+      legacy: [
+        {
+          key: '0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f' +
+            '81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10' +
+            'd4b8',
+          value: '0000000501000000',
+        },
+        {
+          key: '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f' +
+            '81798',
+          value: '00000006',
+        },
+      ],
+      taproot: [],
+    },
+  },
   derivations_are_encoded_as_legacy_and_taproot_values: {
     args: {
       bip32_derivations: [

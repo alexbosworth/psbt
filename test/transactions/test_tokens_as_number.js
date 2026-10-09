@@ -2,7 +2,7 @@ const {equal} = require('node:assert').strict;
 const test = require('node:test');
 const {throws} = require('node:assert').strict;
 
-const tokensAsNumber = require('./../../psbts/tokens_as_number');
+const tokensAsNumber = require('./../../transactions/tokens_as_number');
 
 // Test scenarios
 const tests = {

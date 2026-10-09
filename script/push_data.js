@@ -3,6 +3,7 @@ const {OP_PUSHDATA2} = require('bitcoin-ops');
 const {OP_PUSHDATA4} = require('bitcoin-ops');
 const pushdata = require('pushdata-bitcoin');
 
+const hexAsBuffer = hex => Buffer.from(hex, 'hex');
 
 /** Get a push data buffer for data to push on the stack
 
@@ -18,7 +19,7 @@ const pushdata = require('pushdata-bitcoin');
   <Push Data Buffer>
 */
 module.exports = ({data, encode}) => {
-  const dataToEncode = data || Buffer.from(encode, 'hex');
+  const dataToEncode = data || hexAsBuffer(encode);
 
   const dataLength = dataToEncode.length;
 

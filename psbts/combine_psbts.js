@@ -1,10 +1,24 @@
+const {checkInputSighashTypes} = require('./../checks');
 const decodePsbt = require('./decode_psbt');
-const {encodeSignature} = require('./../signatures');
-const updatePsbt = require('./update_psbt');
+const encodePsbt = require('./encode_psbt');
+const psbtSections = require('./psbt_sections');
+const types = require('./types');
+
+const bufferAsHex = buffer => buffer.toString('hex');
+const {isArray} = Array;
+const notFound = -1;
+const typeOfKey = key => key.subarray(0, 1).toString('hex');
 
 /** Combine multiple PSBTs
+
+  Values that describe a spend, such as UTXOs, scripts, key origins, and
+  sighash types, must match across PSBTs. For other values that differ, such
+  as signatures and final scripts, the earliest PSBT's value is used.
+
+  Signatures must use the sighash type of their input when it has one. A 64
+  byte taproot signature uses the default sighash type.
+
   {
-    ecp: <ECPair Object>
     psbts: [<BIP 174 Encoded PSBT Hex String>]
   }
 
@@ -16,93 +30,94 @@ const updatePsbt = require('./update_psbt');
     psbt: <BIP 174 Encoded PSBT Hex String>
   }
 */
-module.exports = ({ecp, psbts}) => {
-  const additionalAttributes = [];
-  const globalAttributes = {};
-  const inputAttributes = [];
-  const outputAttributes = [];
-  const [referencePsbt] = psbts;
-  const signatures = [];
-  const taprootInputs = [];
-  let tx;
+module.exports = ({psbts}) => {
+  if (!isArray(psbts) || !psbts.length) {
+    throw new Error('ExpectedPsbtsToCombine');
+  }
 
-  psbts.map(psbt => decodePsbt({ecp, psbt})).forEach(decoded => {
+  let kinds;
+  const pairs = [];
+  let sections;
+  let transaction;
+
+  // Decode and combine one PSBT at a time so a mismatch stops early
+  psbts.forEach(psbt => {
+    const decoded = decodePsbt({psbt});
+
     // Transactions must be unique for all combined psbts
-    if (!!tx && tx !== decoded.unsigned_transaction) {
+    if (!!transaction && transaction !== decoded.unsigned_transaction) {
       throw new Error('ExpectedUniqueTransaction');
     }
 
-    tx = tx || decoded.unsigned_transaction;
+    const {sections: next} = psbtSections({psbt});
 
-    // Index unknown global attributes for preservation across combines
-    (decoded.unrecognized_attributes || []).forEach(({type, value}) => {
-      return globalAttributes[type] = value;
-    });
+    transaction = decoded.unsigned_transaction;
 
-    // Iterate through inputs to push signatures, index unknown attributes
-    decoded.inputs.forEach((input, vin) => {
-      (input.unrecognized_attributes || []).forEach(({type, value}) => {
-        inputAttributes[vin] = inputAttributes[vin] || {};
+    // The kind of each section, the global section then inputs then outputs
+    kinds = kinds || [
+      'global',
+      ...decoded.inputs.map(() => 'input'),
+      ...decoded.outputs.map(() => 'output'),
+    ];
 
-        return inputAttributes[vin][type] = value;
-      });
+    // Each section keeps one lookup table of its keys for the combination
+    sections = sections || next.map(() => ({pairs: [], values: new Map()}));
 
-      if (!!input.taproot_key_spend_sig) {
-        taprootInputs.push({
-          vin,
-          key_spend_sig: input.taproot_key_spend_sig,
-        });
-      }
+    return next.forEach((section, i) => {
+      const combined = sections[i];
+      const mustMatch = types.must_match[kinds[i]];
 
-      return (input.partial_sig || []).forEach(partial => {
-        return signatures.push({
-          vin,
-          hash_type: partial.hash_type,
-          public_key: partial.public_key,
-          signature: encodeSignature({
-            flag: partial.hash_type,
-            signature: partial.signature,
-          }),
-        });
-      });
-    });
+      return section.forEach(pair => {
+        const key = bufferAsHex(pair.type);
 
-    // Index unrecognized output attributes by vout
-    decoded.outputs.forEach((output, vout) => {
-      return (output.unrecognized_attributes || []).forEach(pair => {
-        outputAttributes[vout] = outputAttributes[vout] || {};
+        // A key that is new to the section is added
+        if (!combined.values.has(key)) {
+          combined.values.set(key, pair.value);
 
-        return outputAttributes[vout][pair.type] = pair.value;
+          return combined.pairs.push(pair);
+        }
+
+        const isSame = combined.values.get(key).equals(pair.value);
+
+        // Values describing the spend must match, others keep the earliest
+        if (!isSame && mustMatch.includes(typeOfKey(pair.type))) {
+          throw new Error('ExpectedMatchingValuesToCombinePsbts');
+        }
+
+        return;
       });
     });
-
-    return;
   });
 
-  // Fold up global unrecognized attributes
-  Object.keys(globalAttributes).sort().forEach(type => {
-    return additionalAttributes.push({type, value: globalAttributes[type]});
+  // Signatures must use the sighash type of their input when it has one
+  sections.forEach((section, i) => {
+    // Exit early when the section is not an input
+    if (kinds[i] !== 'input') {
+      return;
+    }
+
+    return checkInputSighashTypes({pairs: section.pairs});
   });
 
-  // Fold up input attributes
-  inputAttributes.forEach((attributes, vin) => {
-    return Object.keys(attributes).sort().forEach(type => {
-      return additionalAttributes.push({type, vin, value: attributes[type]});
+  // Each section is put into the standard order of its kinds once, at the end
+  sections.forEach((section, i) => {
+    const order = types.order[kinds[i]];
+
+    // Kinds that are not in the standard order come after all of the others
+    const ranked = section.pairs.map(pair => {
+      const rank = order.indexOf(typeOfKey(pair.type));
+
+      return {pair, rank: rank === notFound ? order.length : rank};
     });
+
+    // Pairs of the same kind keep the order that they were added in
+    ranked.sort((a, b) => a.rank - b.rank).forEach(n => pairs.push(n.pair));
+
+    return pairs.push({separator: true});
   });
 
-  // Fold up output attributes
-  outputAttributes.forEach((attributes, vout) => {
-    return Object.keys(attributes).sort().forEach(type => {
-      return additionalAttributes.push({type, vout, value: attributes[type]});
-    });
-  });
+  // The combined pairs must also form a valid PSBT together
+  const {psbt} = encodePsbt({pairs});
 
-  return updatePsbt({
-    ecp,
-    signatures,
-    additional_attributes: additionalAttributes,
-    psbt: referencePsbt,
-    taproot_inputs: taprootInputs,
-  });
+  return {psbt};
 };

@@ -2,8 +2,6 @@ const strictSame = require('node:assert').strict.deepStrictEqual;
 const test = require('node:test');
 const {throws} = require('node:assert').strict;
 
-const tinysecp = require('tiny-secp256k1');
-
 const {decodePsbt} = require('./../../');
 
 // Test scenarios
@@ -121,6 +119,13 @@ const tests = {
           fingerprint: '772b2da7',
           public_key: '036b772a6db74d8753c98a827958de6c78ab3312109f37d3e0304484242ece73d8',
         },
+        bip32_derivations: [
+          {
+            path: `m/84'/1'/0'/0/0`,
+            fingerprint: '772b2da7',
+            public_key: '036b772a6db74d8753c98a827958de6c78ab3312109f37d3e0304484242ece73d8',
+          },
+        ],
       }],
       pairs: [
         {
@@ -173,6 +178,13 @@ const tests = {
           fingerprint: '772b2da7',
           public_key: '036b772a6db74d8753c98a827958de6c78ab3312109f37d3e0304484242ece73d8',
         },
+        bip32_derivations: [
+          {
+            path: `m/84'/1'/0'/0/0`,
+            fingerprint: '772b2da7',
+            public_key: '036b772a6db74d8753c98a827958de6c78ab3312109f37d3e0304484242ece73d8',
+          },
+        ],
       }],
       pairs: [
         {
@@ -255,7 +267,7 @@ const tests = {
           path: "m/86'/1'/0'/1/0",
           public_key: 'fe349064c98d6e2a853fa3c9b12bd8b304a19c195c60efa7ee2393046d3fa232',
         }],
-        sighash_type: 0,
+        taproot_key_spend_sig_hash_type: 0,
         taproot_internal_key: 'fe349064c98d6e2a853fa3c9b12bd8b304a19c195c60efa7ee2393046d3fa232',
       }],
       outputs: [{
@@ -264,6 +276,13 @@ const tests = {
           fingerprint: '772b2da7',
           public_key: '036b772a6db74d8753c98a827958de6c78ab3312109f37d3e0304484242ece73d8',
         },
+        bip32_derivations: [
+          {
+            path: `m/84'/1'/0'/0/0`,
+            fingerprint: '772b2da7',
+            public_key: '036b772a6db74d8753c98a827958de6c78ab3312109f37d3e0304484242ece73d8',
+          },
+        ],
       }],
       pairs: [
         {
@@ -322,6 +341,14 @@ const tests = {
           path: "m/86'/1'/0'/0/5",
           public_key: '1124da7aec92ccd06c954562647f437b138b95721a84be2bf2276bbddab3e671',
         },
+        bip32_derivations: [
+          {
+            fingerprint: '772b2da7',
+            leaf_hashes: [],
+            path: `m/86'/1'/0'/0/5`,
+            public_key: '1124da7aec92ccd06c954562647f437b138b95721a84be2bf2276bbddab3e671',
+          },
+        ],
       }],
       pairs: [
         {
@@ -367,6 +394,23 @@ const tests = {
         taproot_control_block: 'c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0cd970e15f53fc0c82f950fd560ffa919b76172be017368a89913af074f400b09115f2e490af7cc45c4f78511f36057ce5c5a5c56325a29fb44dfc203f356e1f8',
         taproot_leaf_script: '20fa0f7a3cef3b1d0c0a6ce7d26e17ada0b2e5c92d19efad48b41859cb8a451ca9ac',
         taproot_leaf_version: 192,
+        taproot_leaf_scripts: [
+          {
+            control_block: 'c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac06f7d62059e9497a1a4a267569d9876da60101aff38e3529b9b939ce7f91ae970115f2e490af7cc45c4f78511f36057ce5c5a5c56325a29fb44dfc203f356e1f8',
+            script: '202cb13ac68248de806aa6a3659cf3c03eb6821d09c8114a4e868febde865bb6d2ac',
+            version: 192,
+          },
+          {
+            control_block: 'c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac097c6e6fea5ff714ff5724499990810e406e98aa10f5bf7e5f6784bc1d0a9a6ce',
+            script: '204320b0bf16f011b53ea7be615924aa7f27e5d29ad20ea1155d848676c3bad1b2ac',
+            version: 192,
+          },
+          {
+            control_block: 'c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0cd970e15f53fc0c82f950fd560ffa919b76172be017368a89913af074f400b09115f2e490af7cc45c4f78511f36057ce5c5a5c56325a29fb44dfc203f356e1f8',
+            script: '20fa0f7a3cef3b1d0c0a6ce7d26e17ada0b2e5c92d19efad48b41859cb8a451ca9ac',
+            version: 192,
+          },
+        ],
         bip32_derivations: [
           {
             fingerprint: '772b2da7',
@@ -410,6 +454,14 @@ const tests = {
           path: "m/86'/1'/0'/0/5",
           public_key: '1124da7aec92ccd06c954562647f437b138b95721a84be2bf2276bbddab3e671',
         },
+        bip32_derivations: [
+          {
+            fingerprint: '772b2da7',
+            leaf_hashes: [],
+            path: `m/86'/1'/0'/0/5`,
+            public_key: '1124da7aec92ccd06c954562647f437b138b95721a84be2bf2276bbddab3e671',
+          },
+        ],
       }],
       pairs: [
         {
@@ -515,6 +567,38 @@ const tests = {
           path: "m/86'/1'/3'/0/3",
           public_key: '736e572900fe1252589a2143c8f3c79f71a0412d2353af755e9701c782694a02'
         },
+        bip32_derivations: [
+          {
+            fingerprint: '772b2da7',
+            leaf_hashes: [
+              'f06b798b92a10ed9a9d0bbfd3af173a53b1617da3a4159ca008216cd856b2e0e',
+            ],
+            path: `m/86'/1'/1'/0/3`,
+            public_key: '44faa49a0338de488c8dfffecdfb6f329f380bd566ef20c8df6d813eab1c4273',
+          },
+          {
+            fingerprint: '7c461e5d',
+            leaf_hashes: [],
+            path: undefined,
+            public_key: '50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0',
+          },
+          {
+            fingerprint: '772b2da7',
+            leaf_hashes: [
+              '18ace409889785e0ea70ceebb8e1ca892a7a78eaede0f2e296cf435961a8f4ca',
+            ],
+            path: `m/86'/1'/2'/0/3`,
+            public_key: '631c5f3b5832b8fbdebfb19704ceeb323c21f40f7a24f43d68ef0cc26b125969',
+          },
+          {
+            fingerprint: '772b2da7',
+            leaf_hashes: [
+              '29a5b4915090162d759afd3fe0f93fa3326056d0b4088cb933cae7826cb8d82c',
+            ],
+            path: `m/86'/1'/3'/0/3`,
+            public_key: '736e572900fe1252589a2143c8f3c79f71a0412d2353af755e9701c782694a02',
+          },
+        ],
       }],
       pairs: [
         {
@@ -573,13 +657,49 @@ const tests = {
           tokens: 5000000000,
           script_pub: '5120c2247efbfd92ac47f6f40b8d42d169175a19fa9fa10e4a25d7f35eb4dd85b692',
         },
-        sighash_type: 0,
         taproot_leaf_hash: '6f7d62059e9497a1a4a267569d9876da60101aff38e3529b9b939ce7f91ae970',
         taproot_leaf_public_key: 'fa0f7a3cef3b1d0c0a6ce7d26e17ada0b2e5c92d19efad48b41859cb8a451ca9',
         taproot_script_signature: 'ec1f0379206461c83342285423326708ab031f0da4a253ee45aafa5b8c92034d8b605490f8cd13e00f989989b97e215faa36f12dee3693d2daccf3781c1757f6',
+        taproot_script_signatures: [
+          {
+            hash_type: 0,
+            leaf_hash: 'cd970e15f53fc0c82f950fd560ffa919b76172be017368a89913af074f400b09',
+            public_key: '2cb13ac68248de806aa6a3659cf3c03eb6821d09c8114a4e868febde865bb6d2',
+            signature: 'bf818d9757d6ffeb538ba057fb4c1fc4e0f5ef186e765beb564791e02af5fd3d5e2551d4e34e33d86f276b82c99c79aed3f0395a081efcd2cc2c65dd7e693d79',
+          },
+          {
+            hash_type: 0,
+            leaf_hash: '115f2e490af7cc45c4f78511f36057ce5c5a5c56325a29fb44dfc203f356e1f8',
+            public_key: '4320b0bf16f011b53ea7be615924aa7f27e5d29ad20ea1155d848676c3bad1b2',
+            signature: 'e1f1ab6fabfa26b236f21833719dc1d428ab768d80f91f9988d8abef47bfb863bb1f2a529f768c15f00ce34ec283cdc07e88f8428be28f6ef64043c32911811a',
+          },
+          {
+            hash_type: 0,
+            leaf_hash: '6f7d62059e9497a1a4a267569d9876da60101aff38e3529b9b939ce7f91ae970',
+            public_key: 'fa0f7a3cef3b1d0c0a6ce7d26e17ada0b2e5c92d19efad48b41859cb8a451ca9',
+            signature: 'ec1f0379206461c83342285423326708ab031f0da4a253ee45aafa5b8c92034d8b605490f8cd13e00f989989b97e215faa36f12dee3693d2daccf3781c1757f6',
+          },
+        ],
         taproot_control_block: 'c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0cd970e15f53fc0c82f950fd560ffa919b76172be017368a89913af074f400b09115f2e490af7cc45c4f78511f36057ce5c5a5c56325a29fb44dfc203f356e1f8',
         taproot_leaf_script: '20fa0f7a3cef3b1d0c0a6ce7d26e17ada0b2e5c92d19efad48b41859cb8a451ca9ac',
         taproot_leaf_version: 192,
+        taproot_leaf_scripts: [
+          {
+            control_block: 'c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac06f7d62059e9497a1a4a267569d9876da60101aff38e3529b9b939ce7f91ae970115f2e490af7cc45c4f78511f36057ce5c5a5c56325a29fb44dfc203f356e1f8',
+            script: '202cb13ac68248de806aa6a3659cf3c03eb6821d09c8114a4e868febde865bb6d2ac',
+            version: 192,
+          },
+          {
+            control_block: 'c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac097c6e6fea5ff714ff5724499990810e406e98aa10f5bf7e5f6784bc1d0a9a6ce',
+            script: '204320b0bf16f011b53ea7be615924aa7f27e5d29ad20ea1155d848676c3bad1b2ac',
+            version: 192,
+          },
+          {
+            control_block: 'c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0cd970e15f53fc0c82f950fd560ffa919b76172be017368a89913af074f400b09115f2e490af7cc45c4f78511f36057ce5c5a5c56325a29fb44dfc203f356e1f8',
+            script: '20fa0f7a3cef3b1d0c0a6ce7d26e17ada0b2e5c92d19efad48b41859cb8a451ca9ac',
+            version: 192,
+          },
+        ],
         bip32_derivations: [
           {
             fingerprint: '772b2da7',
@@ -623,6 +743,14 @@ const tests = {
           path: "m/86'/1'/0'/0/5",
           public_key: '1124da7aec92ccd06c954562647f437b138b95721a84be2bf2276bbddab3e671',
         },
+        bip32_derivations: [
+          {
+            fingerprint: '772b2da7',
+            leaf_hashes: [],
+            path: `m/86'/1'/0'/0/5`,
+            public_key: '1124da7aec92ccd06c954562647f437b138b95721a84be2bf2276bbddab3e671',
+          },
+        ],
       }],
       pairs: [
         {
@@ -697,9 +825,7 @@ const tests = {
 
 // Run the tests
 Object.keys(tests).map(t => tests[t]).forEach(({args, err, msg, result}) => {
-  return test(msg, async () => {
-    args.ecp = (await import('ecpair')).ECPairFactory(tinysecp);
-
+  return test(msg, () => {
     if (!!err) {
       throws(() => decodePsbt(args), new Error(err), 'Got expected error');
 

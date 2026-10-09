@@ -1,0 +1,10 @@
+{
+  "extendHexFields": [
+    "final_scriptsig",
+    "final_scriptwitness",
+    "non_witness_utxo",
+    "redeem_script",
+    "taproot_key_spend_sig",
+    "witness_script"
+  ]
+}

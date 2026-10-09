@@ -5,16 +5,16 @@ const bip32Path = require('./bip32_path');
 const bufferAsHex = buffer => buffer.toString('hex');
 const encode = number => numberAsCompactInt({number}).encoded;
 const encodeList = n => encode(n.length).toString('hex') + n.join('');
-const isLegacy = n => n.public_key.length === 66;
-const isTaproot = n => n.public_key.length === 64 && !!n.leaf_hashes;
+const isLegacy = n => [66, 130].includes(n.public_key.length);
+const isTaproot = n => n.public_key.length === 64;
 
 /** Encode BIP32 derivations as values
 
   {
     bip32_derivations: [{
       fingerprint: <Public Key Fingerprint Hex String>
-      [leaf_hashes]: <Taproot Leaf Hash Hex String>
-      path: <BIP 32 Child / Hardened Child / Index Derivation Path String>
+      [leaf_hashes]: [<Taproot Leaf Hash Hex String>]
+      [path]: <BIP 32 Child / Hardened Child / Index Derivation Path String>
       public_key: <Public Key Hex String>
     }]
   }
@@ -42,7 +42,8 @@ module.exports = args => {
   });
 
   const taproot = args.bip32_derivations.filter(isTaproot).map(derivation => {
-    const leafs = encodeList(derivation.leaf_hashes);
+    // Leaf hashes that are not given are an empty list of leaf hashes
+    const leafs = encodeList(derivation.leaf_hashes || []);
     const {path} = derivation;
 
     return {

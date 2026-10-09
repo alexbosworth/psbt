@@ -2,10 +2,20 @@ const {equal} = require('node:assert').strict;
 const test = require('node:test');
 const {throws} = require('node:assert').strict;
 
-const tinysecp = require('tiny-secp256k1');
-
 const {extractTransaction} = require('./../../');
 const {unextractTransaction} = require('./../../');
+
+const anchorTx = '030000000132323232323232323232323232323232323232323232323232323232323232320100000000fdffffff010000000000000000036a01aa00000000';
+const legacyFundingTx = '020000000131313131313131313131313131313131313131313131313131313131313131310000000000ffffffff0150c300000000000022207777777777777777777777777777777777777777777777777777777777777777ac00000000';
+const legacyTx = '0200000001f213d2bcf3d17307e3a5cbb4ab5c69a6371fd9126e22c1267c85170467efd92200000000020101ffffffff01409c000000000000160014555555555555555555555555555555555555555500000000';
+const longHex = 'ab'.repeat(1e7);
+const missingOutputFundingTx = '020000000134343434343434343434343434343434343434343434343434343434343434340000000000ffffffff01e803000000000000015100000000';
+const missingOutputTx = '0200000001b1fd47104cf95be58e7db8bc883aa52711af7442c3051251751d3a9bf452afad0300000000ffffffff010000000000000000036a01aa00000000';
+const opTrueFundingTx = '020000000133333333333333333333333333333333333333333333333333333333333333330000000000ffffffff01e803000000000000015100000000';
+const opTrueTx = '0200000001c7efe6af1491dc1ca71e02cf85a6d826410917f5a51c0c891d1c22b96b9f83c60000000000ffffffff010000000000000000036a01aa00000000';
+const p2trFundingTx = '01000000000101c267c1f8bdc53f69a06cb791ab684d913b9b318511618bee2c56f144ef2f2fd10000000000ffffffff02de91f62901000000160014a5157aec1a4babeeb7f66288597bd10ca26554ab40420f0000000000225120bf5690f1bc5f738cb8e4fced9073e33705a1283870531e282449af45162a6eb8024830450221009c0f9c414ab9bab50f476888e945e6ab668556c2adc056fe016efc7acb3e8cdc02203edd2759d343479ebd42ff10c613fed1f2cc53f3ba7bd9685bbe0ce5306658b2012102ccc5de06aa951bbf9b17bff83c760783c197fff64cb723f1ffc6d47192fd84f700000000';
+const p2trScript = '5120bf5690f1bc5f738cb8e4fced9073e33705a1283870531e282449af45162a6eb8';
+const p2trTx = '02000000000101a82f1922fb7d3de5ec7f7a10639f649f467f86cdd9dd58e6b21875ccb8a417d50100000000ffffffff029e7307000000000016001472924e7842611d799aa663c779fa589cfda04be320a1070000000000225120bf5690f1bc5f738cb8e4fced9073e33705a1283870531e282449af45162a6eb801406f31a87e4997440277c02417dc7b4c8bd64ba571d4f4e271ca3afb43c54590a564c6870511cec4ec4c95ae4de04d8cd7822e94daf89ac17e8da99cd175b7141400000000';
 
 // Test scenarios
 const tests = [
@@ -31,11 +41,6 @@ const tests = [
     },
     description: 'Spending transactions are expected for all inputs',
     err: 'ExpectedSpendingTransactionsForAllInputs',
-  },
-  {
-    args: {ecp: undefined, spending: [], transaction: '00'},
-    description: 'An ecpair object is expected to unextract a transaction',
-    err: 'ExpectedEcpairLibraryToUnextractTransaction',
   },
   {
     args: {transaction: '00'},
@@ -146,17 +151,323 @@ const tests = [
       psbt: '70736274ff0100520200000001148b3f5a75420de37e0e786de7f6999eb98a394c42c440378b2698202af531300000000000ffffffff01e61e0f0000000000160014349bf7b65ce65c98e1f916acd94e45aa5196f40d00000000000108da04004730440220373fe857a531eba5e87bf145fdbbcdcf14ae5c162116d58b2e3685d2a445ae340220739d7b2992eaeadbfcfb8d083504a0f499d85ea7c0353e1a35e6e826d793711b0147304402203218e05ee634a23142e4287eb8b4fbd3034c017686dc7f0a88ccd9b890b4a35f022018cb48e418536244b4af79b069a9d9d6caa9de4c7e6a8aff94b6fd38032fd92501475221024512f87fd6d35fdcb5dfd59bc03e5495802bd802530704f2df28a143ed5dcb3f2102ae77c0512ff8d7caff3c527a666917d9e4f502b50937a1f9b96cecf5869c91d252ae0100fd2d01010000000001012a5e9943f8df7abff835ec6003c9a544e8404521d2e0210d89fd40fda9d766ab00000000171600144da8437135fe9f1af8d5669b6396c117ac953334ffffffff0340420f00000000002200208b12e1377c3a9ed179468724d79ce9004affeaf79b93fde3f25bf2824140dbba40420f0000000000220020cdf6fca2a8197858161d96bda10c4a2b4aa8e1625271a9b57a8d29fb26b85559d23ee72901000000160014166916179c2dcb8aad18c77e251864b16f1e2f9202483045022100abc005d724aa39beaf17471175ad756e89d8b49067d00a64697d5cd2158be9b702206397f0a3dd9bc74359c8bb1a99fa6df91df011f0359b5b91396b1fd5fbbfc42201210347fd4a797e9bc13307c23701f9f37c5cde871ebc5be9f279cae00cc7902fbecc0000000001012b40420f00000000002200208b12e1377c3a9ed179468724d79ce9004affeaf79b93fde3f25bf2824140dbba0000',
     },
   },
+  {
+    args: {
+      spending: [],
+      transaction: '0200000000010144444444444444444444444444444444444444444444444444444444444444440100000000ffffffff01905f0100000000001600145555555555555555555555555555555555555555040048303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030473030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030695221021111111111111111111111111111111111111111111111111111111111111111210222222222222222222222222222222222222222222222222222222222222222222102333333333333333333333333333333333333333333333333333333333333333353ae00000000',
+      utxos: [
+        {
+          script_pub: '0020a409fc2d6aade26b78641dcfac50abe7543e5cc7bb910c09a6024ba3e561d8e8',
+          tokens: 100000,
+          vin: 0,
+        },
+      ],
+    },
+    description: 'A witness element longer than 75 bytes is kept exactly',
+    expected: {
+      psbt: '70736274ff010052020000000144444444444444444444444444444444444444444444444444444444444444440100000000ffffffff01905f010000000000160014555555555555555555555555555555555555555500000000000108fdfd00040048303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030473030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030695221021111111111111111111111111111111111111111111111111111111111111111210222222222222222222222222222222222222222222222222222222222222222222102333333333333333333333333333333333333333333333333333333333333333353ae01012ba086010000000000220020a409fc2d6aade26b78641dcfac50abe7543e5cc7bb910c09a6024ba3e561d8e80000',
+    },
+  },
+  {
+    args: {
+      spending: [],
+      transaction: '0200000000010144444444444444444444444444444444444444444444444444444444444444440000000000ffffffff01905f010000000000160014555555555555555555555555555555555555555502483030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030302102020202020202020202020202020202020202020202020202020202020202020200350c00',
+      utxos: [
+        {
+          script_pub: '00146666666666666666666666666666666666666666',
+          tokens: 100000,
+          vin: 0,
+        },
+      ],
+    },
+    description: 'A lock time with only final sequences is kept as is',
+    expected: {
+      psbt: '70736274ff010052020000000144444444444444444444444444444444444444444444444444444444444444440000000000ffffffff01905f010000000000160014555555555555555555555555555555555555555500350c000001086c02483030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030302102020202020202020202020202020202020202020202020202020202020202020201011fa08601000000000016001466666666666666666666666666666666666666660000',
+    },
+  },
+  {
+    args: {
+      spending: [p2trFundingTx],
+      transaction: p2trTx,
+      utxos: [{script_pub: p2trScript, tokens: 1000000, vin: 0}],
+    },
+    description: 'A UTXO reference matching the previous transaction is used',
+    expected: {
+      psbt: '70736274ff01007d0200000001a82f1922fb7d3de5ec7f7a10639f649f467f86cdd9dd58e6b21875ccb8a417d50100000000ffffffff029e7307000000000016001472924e7842611d799aa663c779fa589cfda04be320a1070000000000225120bf5690f1bc5f738cb8e4fced9073e33705a1283870531e282449af45162a6eb8000000000001084201406f31a87e4997440277c02417dc7b4c8bd64ba571d4f4e271ca3afb43c54590a564c6870511cec4ec4c95ae4de04d8cd7822e94daf89ac17e8da99cd175b7141401012b40420f0000000000225120bf5690f1bc5f738cb8e4fced9073e33705a1283870531e282449af45162a6eb8000000',
+    },
+  },
+  {
+    args: {
+      spending: [p2trFundingTx],
+      transaction: p2trTx,
+      utxos: [{script_pub: p2trScript, tokens: 500000, vin: 0}],
+    },
+    description: 'A reference with tokens unlike the spent output is rejected',
+    err: 'UtxoReferenceDoesNotMatchSpendingTransaction',
+  },
+  {
+    args: {
+      spending: [p2trFundingTx],
+      transaction: p2trTx,
+      utxos: [{script_pub: '5120' + '11'.repeat(32), tokens: 1000000, vin: 0}],
+    },
+    description: 'A reference with a script unlike the output is rejected',
+    err: 'UtxoReferenceDoesNotMatchSpendingTransaction',
+  },
+  {
+    args: {spending: [missingOutputFundingTx], transaction: missingOutputTx},
+    description: 'A previous transaction without the spent output is rejected',
+    err: 'ExpectedSpentOutputInSpendingTransaction',
+  },
+  {
+    args: {spending: ['00'], transaction: opTrueTx},
+    description: 'A spending transaction that cannot be parsed is rejected',
+    err: 'ExpectedValidSpendingTransactionToUnextractTx',
+  },
+  {
+    args: {
+      spending: [],
+      transaction: opTrueTx,
+      utxos: [{script_pub: '51', tokens: 1000, vin: 0}],
+    },
+    description: 'A legacy input is funded by a transaction, not a reference',
+    err: 'ExpectedSpendingTransactionForLegacyInput',
+  },
+  {
+    args: {
+      spending: [opTrueFundingTx],
+      transaction: opTrueTx,
+      utxos: [{script_pub: '51', tokens: 1000, vin: 0}],
+    },
+    description: 'A referenced legacy input uses its previous transaction',
+    expected: {
+      psbt: '70736274ff01003f0200000001c7efe6af1491dc1ca71e02cf85a6d826410917f5a51c0c891d1c22b96b9f83c60000000000ffffffff010000000000000000036a01aa000000000001070001003d020000000133333333333333333333333333333333333333333333333333333333333333330000000000ffffffff01e8030000000000000151000000000000',
+    },
+  },
+  {
+    args: {spending: [opTrueFundingTx], transaction: opTrueTx},
+    description: 'An empty legacy unlocking script is kept as a final script',
+    expected: {
+      psbt: '70736274ff01003f0200000001c7efe6af1491dc1ca71e02cf85a6d826410917f5a51c0c891d1c22b96b9f83c60000000000ffffffff010000000000000000036a01aa000000000001070001003d020000000133333333333333333333333333333333333333333333333333333333333333330000000000ffffffff01e8030000000000000151000000000000',
+    },
+  },
+  {
+    args: {
+      spending: [],
+      transaction: anchorTx,
+      utxos: [{script_pub: '51024e73', tokens: 240, vin: 0}],
+    },
+    description: 'A witness input with no unlocking data has an empty script',
+    expected: {
+      psbt: '70736274ff01003f030000000132323232323232323232323232323232323232323232323232323232323232320100000000fdffffff010000000000000000036a01aa000000000001070001010df0000000000000000451024e730000',
+    },
+  },
+  {
+    args: {spending: [legacyFundingTx], transaction: legacyTx},
+    description: 'A legacy script of taproot length keeps its funding tx',
+    expected: {
+      psbt: '70736274ff0100520200000001f213d2bcf3d17307e3a5cbb4ab5c69a6371fd9126e22c1267c85170467efd9220000000000ffffffff01409c00000000000016001455555555555555555555555555555555555555550000000000010702010101005e020000000131313131313131313131313131313131313131313131313131313131313131310000000000ffffffff0150c300000000000022207777777777777777777777777777777777777777777777777777777777777777ac000000000000',
+    },
+  },
+  {
+    args: {spending: [], transaction: anchorTx, utxos: {}},
+    description: 'UTXO references are expected to be an array',
+    err: 'ExpectedArrayOfUtxoReferencesToUnextractTx',
+  },
+  {
+    args: {
+      spending: [],
+      transaction: anchorTx,
+      utxos: [{script_pub: '51024e73', tokens: 240, vin: '0'}],
+    },
+    description: 'A UTXO reference needs a whole number input index',
+    err: 'ExpectedInputIndexForUtxoReference',
+  },
+  {
+    args: {
+      spending: [],
+      transaction: anchorTx,
+      utxos: [{script_pub: '51024e7', tokens: 240, vin: 0}],
+    },
+    description: 'A UTXO reference script of partial hex bytes is rejected',
+    err: 'ExpectedHexScriptPubForUtxoReference',
+  },
+  {
+    args: {
+      spending: [],
+      transaction: anchorTx,
+      utxos: [{script_pub: '51024e7g', tokens: 240, vin: 0}],
+    },
+    description: 'A UTXO reference script that is not hex is rejected',
+    err: 'ExpectedHexScriptPubForUtxoReference',
+  },
+  {
+    args: {
+      spending: [],
+      transaction: anchorTx,
+      utxos: [{script_pub: `${longHex}x`, tokens: 240, vin: 0}],
+    },
+    description: 'A very long UTXO reference script that is not hex is rejected',
+    err: 'ExpectedHexScriptPubForUtxoReference',
+  },
+  {
+    args: {
+      spending: [],
+      transaction: anchorTx,
+      utxos: [{script_pub: '51024e73', tokens: true, vin: 0}],
+    },
+    description: 'A UTXO reference amount that is not a number is rejected',
+    err: 'ExpectedNonNegativeTokensForUtxoReference',
+  },
+  {
+    args: {
+      spending: [],
+      transaction: anchorTx,
+      utxos: [{script_pub: '51024e73', tokens: -1, vin: 0}],
+    },
+    description: 'A negative UTXO reference amount is rejected',
+    err: 'ExpectedNonNegativeTokensForUtxoReference',
+  },
+  {
+    args: {
+      spending: [],
+      transaction: anchorTx,
+      utxos: [{script_pub: '51024e73', tokens: 1.5, vin: 0}],
+    },
+    description: 'A fractional UTXO reference amount is rejected',
+    err: 'ExpectedNonNegativeTokensForUtxoReference',
+  },
+  {
+    args: {
+      spending: [],
+      transaction: anchorTx,
+      utxos: [{script_pub: '51024e73', tokens: 2 ** 53, vin: 0}],
+    },
+    description: 'A UTXO reference amount beyond safe integers is rejected',
+    err: 'ExpectedNonNegativeTokensForUtxoReference',
+  },
+  {
+    args: {
+      spending: [],
+      transaction: anchorTx,
+      utxos: [
+        {script_pub: '51024e73', tokens: 240, vin: 0},
+        {script_pub: '51024e73', tokens: 1, vin: 0},
+      ],
+    },
+    description: 'The first UTXO reference for an input is the one used',
+    expected: {
+      psbt: '70736274ff01003f030000000132323232323232323232323232323232323232323232323232323232323232320100000000fdffffff010000000000000000036a01aa000000000001070001010df0000000000000000451024e730000',
+    },
+  },
+  {
+    args: {
+      spending: [opTrueFundingTx, opTrueFundingTx],
+      transaction: opTrueTx,
+    },
+    description: 'A previous transaction given twice is used once',
+    expected: {
+      psbt: '70736274ff01003f0200000001c7efe6af1491dc1ca71e02cf85a6d826410917f5a51c0c891d1c22b96b9f83c60000000000ffffffff010000000000000000036a01aa000000000001070001003d020000000133333333333333333333333333333333333333333333333333333333333333330000000000ffffffff01e8030000000000000151000000000000',
+    },
+  },
+  {
+    args: {
+      spending: [],
+      transaction: '0200000001616161616161616161616161616161616161616161616161616161616161616100000000232252205a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5affffffff010000000000000000036a01aa00000000',
+      utxos: [{
+        script_pub: 'a91488b20ba8eea258f8f386a60c41cdf8db39c88b4487',
+        tokens: 1000,
+        vin: 0,
+      }],
+    },
+    description: 'A nested witness v2 spend with no witness uses a reference',
+    expected: {
+      psbt: '70736274ff01003f020000000161616161616161616161616161616161616161616161616161616161616161610000000000ffffffff010000000000000000036a01aa00000000000107232252205a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a010120e80300000000000017a91488b20ba8eea258f8f386a60c41cdf8db39c88b44870000',
+    },
+  },
+  {
+    args: {
+      spending: [],
+      transaction: '0200000001616161616161616161616161616161616161616161616161616161616161616100000000232252205a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5affffffff010000000000000000036a01aa00000000',
+      utxos: [{
+        script_pub: 'a914ccc30d00c99fead0b676b5d9b0d94c99c27dc39987',
+        tokens: 1000,
+        vin: 0,
+      }],
+    },
+    description: 'A nested witness program must hash to the spent output',
+    err: 'ExpectedSpendingTransactionForLegacyInput',
+  },
+  {
+    args: {
+      spending: [],
+      transaction: '0200000001616161616161616161616161616161616161616161616161616161616161616100000000244c2252205a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5affffffff010000000000000000036a01aa00000000',
+      utxos: [{
+        script_pub: 'a91488b20ba8eea258f8f386a60c41cdf8db39c88b4487',
+        tokens: 1000,
+        vin: 0,
+      }],
+    },
+    description: 'A witness program in a longer push is not a nested spend',
+    err: 'ExpectedSpendingTransactionForLegacyInput',
+  },
+  {
+    args: {
+      spending: [],
+      transaction: '0200000001616161616161616161616161616161616161616161616161616161616161616100000000242252205a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a51ffffffff010000000000000000036a01aa00000000',
+      utxos: [{
+        script_pub: 'a91488b20ba8eea258f8f386a60c41cdf8db39c88b4487',
+        tokens: 1000,
+        vin: 0,
+      }],
+    },
+    description: 'A scriptSig with more than a program is not a nested spend',
+    err: 'ExpectedSpendingTransactionForLegacyInput',
+  },
+  {
+    args: {
+      spending: [],
+      transaction: '020000000161616161616161616161616161616161616161616161616161616161616161610000000024002252205a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5affffffff010000000000000000036a01aa00000000',
+      utxos: [{
+        script_pub: 'a91488b20ba8eea258f8f386a60c41cdf8db39c88b4487',
+        tokens: 1000,
+        vin: 0,
+      }],
+    },
+    description: 'A scriptSig starting with an op code is not a nested spend',
+    err: 'ExpectedSpendingTransactionForLegacyInput',
+  },
+  {
+    args: {
+      spending: [],
+      transaction: '02000000016161616161616161616161616161616161616161616161616161616161616161000000000403aabbccffffffff010000000000000000036a01aa00000000',
+      utxos: [{
+        script_pub: 'a9140bfbcadae145d870428db173412d2d860b9acf5e87',
+        tokens: 1000,
+        vin: 0,
+      }],
+    },
+    description: 'A pushed script that is not a program is not a nested spend',
+    err: 'ExpectedSpendingTransactionForLegacyInput',
+  },
+  {
+    args: {
+      spending: [],
+      transaction: '0200000001616161616161616161616161616161616161616161616161616161616161616100000000014cffffffff010000000000000000036a01aa00000000',
+      utxos: [{
+        script_pub: 'a91488b20ba8eea258f8f386a60c41cdf8db39c88b4487',
+        tokens: 1000,
+        vin: 0,
+      }],
+    },
+    description: 'A scriptSig that cannot be parsed is not a nested spend',
+    err: 'ExpectedSpendingTransactionForLegacyInput',
+  },
 ];
 
 // Run the tests
 tests.forEach(({args, err, expected, description}) => {
-  return test(description, async () => {
-    const ecp = (await import('ecpair')).ECPairFactory(tinysecp);
-
-    if (!('ecp' in args)) {
-      args.ecp = ecp;
-    }
-
+  return test(description, () => {
     if (!!err) {
       throws(() => unextractTransaction(args), new Error(err));
 
@@ -167,7 +478,7 @@ tests.forEach(({args, err, expected, description}) => {
 
     equal(got.psbt, expected.psbt, 'PSBT is formed as expected');
 
-    const extracted = extractTransaction({ecp, psbt: got.psbt});
+    const extracted = extractTransaction({psbt: got.psbt});
 
     equal(extracted.transaction, args.transaction, 'TX can be extracted');
 

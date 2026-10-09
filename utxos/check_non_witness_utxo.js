@@ -1,66 +1,60 @@
-const {componentsOfTransaction} = require('@alexbosworth/blockchain');
-const {scriptAsScriptElements} = require('@alexbosworth/blockchain');
-const {OP_EQUAL} = require('bitcoin-ops');
-const {OP_HASH160} = require('bitcoin-ops');
+const checkWitnessUtxo = require('./check_witness_utxo');
+const isP2shScript = require('./is_p2sh_script');
+const witnessProgram = require('./witness_program');
 
-const {p2shHashByteLength} = require('./constants');
+const hashStart = 2;
+const hexAsBuffer = hex => Buffer.from(hex, 'hex');
 
-const asElements = script => scriptAsScriptElements({script}).elements;
-const bufferAsHex = buffer => buffer.toString('hex');
-
-/** Check that an input's non witness utxo is valid
+/** Check that the output an input spends fits the input's scripts
 
   {
-    hash: <Input Redeem Script RIPEMD160 Hash Buffer Object>
-    script: <Input Redeem Script Buffer Object>
-    utxo: <Non-Witness UTXO Transaction Buffer Object>
+    [hash]: <Input Redeem Script HASH160 Buffer Object>
+    [output]: {
+      script: <Spent Output Script Hex String>
+    }
+    [redeem]: <Input Redeem Script Hex String>
+    [witness]: <Input Witness Script SHA256 Buffer Object>
   }
 
   @throws
-  <RedeemScriptDoesNotMatchUtxo Error>
+  <Error>
 */
-module.exports = ({hash, script, utxo}) => {
-  if (!hash) {
+module.exports = ({hash, output, redeem, witness}) => {
+  if (!hash && !witness) {
     throw new Error('ExpectedNonWitnessRedeemScriptHashBuffer');
   }
 
-  if (!script) {
-    throw new Error('ExpectedNonWitnessRedeemScriptBuffer');
+  // The spent output must exist in the non-witness UTXO transaction
+  if (!output) {
+    throw new Error('ExpectedSpentOutputInNonWitnessUtxo');
   }
 
-  if (!utxo) {
-    throw new Error('ExpectedNonWitnessUtxoBuffer');
-  }
+  const script = hexAsBuffer(output.script);
 
-  const {outputs} = componentsOfTransaction({transaction: bufferAsHex(utxo)});
+  const isP2sh = isP2shScript({script});
 
-  const scriptPubHashes = outputs.map(out => {
-    // It's expected that the scriptPub be a normal P2SH script
-    const [hash160, scriptHash, isEqual, extra] = asElements(out.script);
+  // The script hash sits between the push length and the final OP_EQUAL
+  const scriptHash = script.subarray(hashStart, -1);
 
-    if (hash160 !== OP_HASH160) {
-      return null;
-    }
-
-    if (scriptHash.length !== p2shHashByteLength) {
-      return null;
-    }
-
-    if (isEqual !== OP_EQUAL) {
-      return null;
-    }
-
-    if (!!extra) {
-      return null;
-    }
-
-    return scriptHash;
-  });
-
-  // Make sure the p2sh script hashes has a hash that matches the input
-  if (!scriptPubHashes.find(h => !!h && h.equals(hash))) {
+  // Make sure the spent output pays to the hash of the redeem script
+  if (!!hash && (!isP2sh || !scriptHash.equals(hash))) {
     throw new Error('RedeemScriptDoesNotMatchUtxo');
   }
+
+  // Exit early when there is no witness script to check
+  if (!witness) {
+    return;
+  }
+
+  const {program} = witnessProgram({script});
+
+  // A witness script is only for an output paying to a script hash or program
+  if (!isP2sh && !program) {
+    throw new Error('WitnessScriptDoesNotMatchUtxo');
+  }
+
+  // The witness script must hash to the witness program being spent
+  checkWitnessUtxo({redeem, hash: witness, script: output.script});
 
   return;
 };

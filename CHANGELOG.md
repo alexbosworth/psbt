@@ -1,5 +1,45 @@
 # Versions
 
+## 7.0.0
+
+- Methods no longer take an `ecp` object
+- `signPsbt` and `finalizePsbt` handle P2PKH, P2PK, bare multisig, P2WPKH,
+    taproot key spends, and P2SH, P2WSH and nested scripts that pay to a key,
+    a key hash or a multisig, using the input's sighash type
+- `finalizePsbt` checks signatures, puts multisig signatures in key order,
+    and with `is_partial` finalizes only the inputs that are ready
+- Updating, signing, combining and extending keep what is already in a
+    PSBT, such as signatures, sighash types, taproot and unknown fields
+- `updatePsbt` matches scripts and key paths to the output each input
+    spends, adds them to outputs too, and adds the full funding transaction
+    of version 0 witness inputs
+- `decodePsbt` returns more taproot fields and output key origins
+- `signPsbt` accepts the `signet` and `testnet4` networks
+
+### Breaking Changes
+
+- PSBTs are checked strictly by every method: malformed encodings, UTXOs
+    and scripts that don't match the output being spent, duplicate inputs,
+    undefined sighash types and version 2 fields are rejected
+- Signatures must use their input's sighash type, including taproot
+    signatures, where 64 bytes means the default type
+- `decodePsbt` returns public keys exactly as encoded, and `sighash_type`
+    only from the input's sighash field
+- `combinePsbts` keeps the earliest PSBT's value when values conflict, and
+    rejects PSBTs that disagree on UTXOs, scripts, key origins or sighash types
+- `finalizePsbt` rejects inputs without a UTXO, unsupported scripts and
+    inputs without enough valid signatures, instead of making invalid scripts.
+    A taproot key spend that signs every input needs every input's UTXO
+- `signPsbt` only signs with keys the script checks, needs the full previous
+    transaction for legacy inputs and a UTXO for witness inputs, and won't
+    sign witness inputs with uncompressed keys
+- `transactionAsPsbt` needs the spending transaction of every input and only
+    converts supported spends that finalize to the same transaction
+- Arguments are validated, for example `createPsbt` amounts, ids and
+    scripts, and `encodePsbt` must produce a valid PSBT
+- Some error names changed, for example `ExpectedSeparator` is now
+    `ExpectedKeyAndValueForPsbtPair`
+
 ## 6.0.4
 
 - Require node.js 22 or higher

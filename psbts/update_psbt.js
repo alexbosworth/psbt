@@ -1,53 +1,72 @@
 const {createHash} = require('node:crypto');
 
 const {componentsOfTransaction} = require('@alexbosworth/blockchain');
-const {idForTransaction} = require('@alexbosworth/blockchain');
 const {numberAsCompactInt} = require('@alexbosworth/blockchain');
-const {OP_0} = require('bitcoin-ops');
-const {OP_EQUAL} = require('bitcoin-ops');
-const {OP_HASH160} = require('bitcoin-ops');
 const {scriptAsScriptElements} = require('@alexbosworth/blockchain');
 
 const {bip32Path} = require('./../bip32');
+const {checkInputSighashTypes} = require('./../checks');
+const {checkUpdateArguments} = require('./../checks');
 const decodePsbt = require('./decode_psbt');
 const encodePsbt = require('./encode_psbt');
-const {encodeSignature} = require('./../signatures');
-const {isMultisig} = require('./../script');
-const {opNumberOffset} = require('./constants');
-const {pushData} = require('./../script');
-const {sigHashByteLength} = require('./constants');
-const {stackIndexByteLength} = require('./constants');
+const {hash160} = require('./../spends');
+const {inputSighashType} = require('./../spends');
+const {inputSpentOutput} = require('./../spends');
+const {isWitnessProgram} = require('./../utxos');
+const {legacyTransactionComponents} = require('./../transactions');
+const {matchingDerivations} = require('./../spends');
+const mergePairs = require('./merge_pairs');
+const {paidScripts} = require('./../spends');
+const psbtSections = require('./psbt_sections');
+const sighashAsBuffer = require('./sighash_as_buffer');
 const {tokensByteLength} = require('./constants');
+const {transactionId} = require('./../transactions');
 const types = require('./types');
+const {witnessProgram} = require('./../utxos');
 
-const asElements = script => scriptAsScriptElements({script}).elements;
+const asElements = script => scriptAsScriptElements({script}).elements || [];
 const bufferAsHex = buffer => buffer.toString('hex');
+const byPublicKey = (a, b) => a.public_key < b.public_key ? -1 : 1;
 const encode = number => numberAsCompactInt({number}).encoded;
-const hash160 = n => createHash('ripemd160').update(sha256(n)).digest();
-const hasWitness = tx => tx.inputs.some(n => !!(n.witness || []).length);
+const hexAsBuffer = hex => Buffer.from(hex, 'hex');
 const {isBuffer} = Buffer;
-const isNestedP2wpkhReedeemScript = n => !!n && n.length === 44;
-const publicKeyHashLength = 20;
-const redeemHashLength = 20;
-const sha256 = n => createHash('sha256').update(n).digest();
-const transactionId = tx => idForTransaction({transaction: tx}).id;
-const txOuts = tx => componentsOfTransaction({transaction: tx}).outputs;
+const key = (type, data) => Buffer.concat([Buffer.from(type, 'hex'), data]);
+const scriptOf = hex => hex === undefined ? hex : Buffer.from(hex, 'hex');
+const sha256 = data => createHash('sha256').update(data).digest();
+const versionZero = 0;
 
 /** Update a PSBT
+
+  Everything already in the PSBT is kept. Supplied values are added, and they
+  replace an existing value that has the same key.
+
+  Scripts and derivations are matched to the output that each input spends and
+  to each output. Derivations are only added for keys that the scripts check
+  signatures with.
+
+  A supplied funding transaction is added as the witness UTXO of a witness
+  output, and as the full transaction of a legacy or version 0 witness output,
+  so that signers can check the amount being spent.
+
+  The sighash type of an input is chosen once every change to the input is
+  merged, including additional attributes. An input with a sighash type after
+  the changes keeps it, and all of its signatures must use it. Otherwise,
+  supplied signatures give the input the sighash type that all of its
+  signatures share, or no sighash type when they use different ones. Taproot
+  signatures do not set a sighash type.
 
   {
     [additional_attributes]: [{
       type: <Type Hex String>
       value: <Value Hex String>
-      vin: <Input Index Number>
-      vout: <Output Index Number>
+      [vin]: <Input Index Number>
+      [vout]: <Output Index Number>
     }]
     [bip32_derivations]: [{
       fingerprint: <BIP 32 Fingerprint of Parent's Key Hex String>
-      path: <BIP 32 Derivation Path String>
-      public_key: <Public Key String>
+      [path]: <BIP 32 Derivation Path String>
+      public_key: <Public Key Hex String>
     }]
-    ecp: <ECPair Object>
     psbt: <BIP 174 Encoded PSBT String>
     [redeem_scripts]: [<Hex Encoded Redeem Script String>]
     [sighashes]: [{
@@ -56,8 +75,8 @@ const txOuts = tx => componentsOfTransaction({transaction: tx}).outputs;
       vout: <Spending Output Index Number>
     }]
     [signatures]: [{
-      hash_type: <Signature Hash Type Number>
-      public_key: <BIP 32 Public Key String>
+      [hash_type]: <Signature Hash Type Number>
+      public_key: <Public Key Hex String>
       signature: <Signature Hex String>
       vin: <Signature Input Index Number>
     }]
@@ -65,8 +84,8 @@ const txOuts = tx => componentsOfTransaction({transaction: tx}).outputs;
       [key_spend_sig]: <Taproot Key Spend Signature Hex String>
       vin: <Input Index Number>
     }]
-    [transactions]: [<Hex Encoding Transaction String>]
-    [witness_scripts]: [<Witness Script String>]
+    [transactions]: [<Hex Encoded Transaction String>]
+    [witness_scripts]: [<Witness Script Hex String>]
   }
 
   @throws
@@ -78,659 +97,423 @@ const txOuts = tx => componentsOfTransaction({transaction: tx}).outputs;
   }
 */
 module.exports = args => {
-  if (!args.ecp) {
-    throw new Error('ExpectedEcpairObjectToUpdatePsbt');
-  }
-
   if (!args.psbt) {
     throw new Error('ExpectedPsbtToUpdate');
   }
 
-  const addAttributes = args.additional_attributes || [];
-  const bip32Derivations = args.bip32_derivations || [];
-  const decoded = decodePsbt({ecp: args.ecp, psbt: args.psbt});
-  const inputs = [];
-  const outputs = [];
+  const decoded = decodePsbt({psbt: args.psbt});
+  const derivations = new Map();
+  const fundings = new Map();
+  const globalAttributes = [];
+  const knownFundings = new Map();
   const pairs = [];
-  const pubKeyHashes = {};
-  const pubKeys = {};
-  const redeemScripts = args.redeem_scripts || [];
-  const redeems = {};
-  const scriptPubs = {};
-  const sighashes = {};
-  const signatures = {};
-  const transactions = args.transactions || [];
-  const txs = {};
-  const witnessScripts = args.witness_scripts || [];
-  const witnesses = {};
+  const pushed = new Map();
+  const redeems = new Map();
+  const sighashes = new Map();
+  const taprootInputs = new Map();
+  const witnesses = new Map();
 
-  const tx = componentsOfTransaction({
+  const {sections} = psbtSections({psbt: args.psbt});
+
+  // The existing pairs of each section are the starting point of the update
+  const [globalPairs, ...maps] = sections;
+
+  const tx = legacyTransactionComponents({
     transaction: decoded.unsigned_transaction,
   });
 
-  decoded.inputs = decoded.inputs.map(input => {
-    return !Object.keys(input).length ? null : input;
-  });
+  // Arguments are checked before anything is encoded
+  checkUpdateArguments({transaction: tx, update: args});
 
-  // The unsigned transaction is the top pair
-  pairs.push({
-    type: Buffer.from(types.global.unsigned_tx, 'hex'),
-    value: Buffer.from(decoded.unsigned_transaction, 'hex'),
-  });
+  const inputAttributes = tx.inputs.map(() => []);
+  const inputPairs = maps.slice(0, tx.inputs.length);
+  const outputAttributes = tx.outputs.map(() => []);
+  const outputPairs = maps.slice(tx.inputs.length);
+  const signatures = tx.inputs.map(() => []);
 
-  addAttributes.forEach(({type, value, vin, vout}) => {
-    if (vin !== undefined || vout !== undefined) {
-      return;
+  // Group the additional attributes by section once
+  (args.additional_attributes || []).forEach(({type, value, vin, vout}) => {
+    const pair = {type: hexAsBuffer(type), value: hexAsBuffer(value)};
+
+    if (vin !== undefined) {
+      return inputAttributes[vin].push(pair);
     }
 
-    return pairs.push({
-      type: Buffer.from(type, 'hex'),
-      value: Buffer.from(value, 'hex'),
-    });
+    if (vout !== undefined) {
+      return outputAttributes[vout].push(pair);
+    }
+
+    return globalAttributes.push(pair);
   });
+
+  // Existing global pairs are kept, with additional global attributes set
+  const {section: globalSection} = mergePairs({
+    order: types.order.global,
+    pairs: globalAttributes,
+    section: globalPairs,
+  });
+
+  globalSection.forEach(n => pairs.push(n));
 
   pairs.push({separator: true});
 
-  // Index public keys and public key hashes for lookup
-  bip32Derivations.forEach(n => {
-    const pkHash = hash160(Buffer.from(n.public_key, 'hex')).toString('hex');
+  // Index derivations by public key and by public key hash, as lowercase hex
+  (args.bip32_derivations || []).forEach(n => {
+    const publicKey = hexAsBuffer(n.public_key);
 
-    pubKeyHashes[pkHash] = n;
-    pubKeys[n.public_key] = n;
+    const derivation = {
+      fingerprint: n.fingerprint,
+      path: n.path,
+      public_key: bufferAsHex(publicKey),
+    };
+
+    derivations.set(derivation.public_key, derivation);
+    derivations.set(bufferAsHex(hash160({data: publicKey})), derivation);
 
     return;
   });
 
   // Index sighashes by spending outpoint
-  if (Array.isArray(args.sighashes)) {
-    args.sighashes.forEach(n => sighashes[`${n.id}:${n.vout}`] = n.sighash);
-  }
-
-  // Index signatures by vin
-  if (Array.isArray(args.signatures)) {
-    args.signatures.forEach(n => signatures[n.vin] = signatures[n.vin] || []);
-    args.signatures.forEach(n => signatures[n.vin].push(n));
-  }
-
-  // Index transactions by id
-  transactions.forEach(t => txs[transactionId(t)] = t);
-
-  // Index redeem scripts by redeem script hash
-  redeemScripts.map(n => Buffer.from(n, 'hex')).forEach(script => {
-    const scriptBuffers = asElements(bufferAsHex(script)).filter(isBuffer);
-
-    scriptBuffers
-      .map(n => n.toString('hex'))
-      .forEach(n => redeems[n] = script);
-
-    const foundKeys = scriptBuffers.map(n => pubKeys[n.toString('hex')]);
-
-    return redeems[hash160(script).toString('hex')] = {
-      script,
-      bip32_derivations: foundKeys.filter(n => !!n),
-    };
+  (args.sighashes || []).forEach(n => {
+    return sighashes.set(`${n.id.toLowerCase()}:${n.vout}`, n.sighash);
   });
 
-  // Index witness scripts by the witness script hash, nested script hash
-  witnessScripts.map(n => Buffer.from(n, 'hex')).forEach(script => {
-    const witnessHash = sha256(script).toString('hex');
+  // Group signatures by the input that they sign
+  (args.signatures || []).forEach(n => signatures[n.vin].push(n));
 
-    witnesses[witnessHash] = {witness: script};
+  // Index taproot inputs by the input that they are for
+  (args.taproot_inputs || []).forEach(n => taprootInputs.set(n.vin, n));
 
-    const redeemScript = redeems[witnessHash];
+  // Index supplied funding transactions by id, parsing each one only once
+  (args.transactions || []).forEach(transaction => {
+    let funding;
 
-    // Exit early when there is no nested p2sh
-    if (!redeemScript) {
+    try {
+      funding = componentsOfTransaction({transaction});
+    } catch (err) {
+      throw new Error('ExpectedValidTransactionToUpdatePsbt');
+    }
+
+    const {id} = transactionId(funding);
+
+    return fundings.set(id, {transaction, outputs: funding.outputs});
+  });
+
+  // Index redeem scripts by their hashes
+  (args.redeem_scripts || []).forEach(hex => {
+    const [push] = asElements(hex);
+    const script = hexAsBuffer(hex);
+
+    redeems.set(bufferAsHex(hash160({data: script})), script);
+
+    // A redeem script can also be given as a push of the redeem script
+    if (!isBuffer(push)) {
       return;
     }
 
-    const decompiledBuffers = asElements(bufferAsHex(script)).filter(isBuffer);
-
-    const foundKeys = decompiledBuffers.map(n => pubKeys[n.toString('hex')]);
-
-    // Index using the nested scriptPub hash
-    witnesses[hash160(redeemScript).toString('hex')] = {
-      derivations: foundKeys.filter(n => !!n),
-      redeem: redeemScript,
-      witness: script,
-    };
-
-    return;
+    return pushed.set(bufferAsHex(hash160({data: push})), push);
   });
 
-  // Iterate through transaction inputs and fill in values
-  tx.inputs.forEach((input, vin) => {
-    const utxo = decoded.inputs[vin] || {};
+  // Index witness scripts by their hashes
+  (args.witness_scripts || []).forEach(hex => {
+    const script = hexAsBuffer(hex);
 
-    const spendsTxId = input.id;
+    return witnesses.set(bufferAsHex(sha256(script)), script);
+  });
 
-    utxo.sighash_type = sighashes[`${spendsTxId}:${input.vout}`];
+  // Derivations and scripts are matched to the outputs that inputs spend
+  const isMatching = !!derivations.size || !!redeems.size || !!witnesses.size;
 
-    if (Array.isArray(signatures[vin])) {
-      utxo.partial_sig = signatures[vin];
-      signatures[vin].forEach(n => utxo.sighash_type = n.hash_type);
+  // Full funding transactions already in the PSBT are parsed once each
+  decoded.inputs.forEach((input, vin) => {
+    const {id} = tx.inputs[vin];
+
+    // A full funding transaction is used when no other record has the output
+    const isUsed = !fundings.has(id) && !input.witness_utxo;
+
+    if (!isMatching || !isUsed || !input.non_witness_utxo) {
+      return;
     }
 
-    const spends = txs[spendsTxId];
-
-    if (!spends) {
-      return inputs.push(null);
+    // Inputs that spend from the same transaction share its parsed outputs
+    if (knownFundings.has(id)) {
+      return;
     }
 
-    const spendsTx = componentsOfTransaction({transaction: spends});
-
-    // Find the non-witness output
-    const out = spendsTx.outputs
-      .filter(({script}) => {
-        const [, hash] = asElements(script);
-
-        return isBuffer(hash);
-      })
-      .map(({script}) => {
-        const [, hash] = asElements(script);
-
-        const index = hash.toString('hex');
-
-        const redeem = redeems[index] || {};
-
-        return {
-          index,
-          derivations: redeem.bip32_derivations,
-          redeem: redeem.script,
-        };
-      })
-      .find(({index}) => !!redeems[index]);
-
-    // Find the output in the spending transaction that matches the input
-    const outW = spendsTx.outputs
-      .filter(({script}) => {
-        const [, scriptHash] = asElements(script);
-
-        return isBuffer(scriptHash);
-      })
-      .map(({script, tokens}) => {
-        // Get the hash being spent, either a P2SH or a P2WSH
-        const [, scriptHash] = asElements(script);
-
-        const hash = scriptHash.toString('hex');
-
-        const matchingWitness = witnesses[hash] || {};
-
-        const {derivations, redeem, witness} = matchingWitness;
-
-        return {derivations, hash, redeem, script, tokens, witness};
-      })
-      .find(({hash}) => !!witnesses[hash]);
-
-    const spending = args.transactions.find(transaction => {
-      return transactionId(transaction) === input.id;
+    const funding = componentsOfTransaction({
+      transaction: input.non_witness_utxo,
     });
 
-    const spendOut = txOuts(spending)[input.vout];
+    return knownFundings.set(id, funding.outputs);
+  });
 
-    if (!!outW && !!outW.witness) {
-      utxo.witness_script = outW.witness.toString('hex');
+  // Iterate through transaction inputs to find the values to set
+  const updates = tx.inputs.map((input, vin) => {
+    const records = decoded.inputs[vin];
+    const supplied = fundings.get(input.id);
+    const update = {};
+
+    update.partial_sig = signatures[vin];
+    update.sighash_type = sighashes.get(`${input.id}:${input.vout}`);
+
+    // Exit early when there is nothing to find for the output being spent
+    if (!isMatching && !supplied) {
+      return update;
     }
 
-    if (!!spendOut) {
-      const [, spendScript] = asElements(spendOut.script);
+    const spent = inputSpentOutput({
+      known: knownFundings.get(input.id),
+      supplied: !!supplied ? supplied.outputs : undefined,
+      vout: input.vout,
+      witness_utxo: records.witness_utxo,
+    });
 
-      // Look for a redeem script that matches this spend out script
-      const redeemScript = (args.redeem_scripts || []).find(script => {
-        // Exit early when there is no spend script
-        if (!isBuffer(spendScript)) {
-          return false;
-        }
-
-        const [push] = asElements(script);
-
-        if (!isBuffer(push)) {
-          return false;
-        }
-
-        return spendScript.equals(hash160(push));
-      });
-
-      if (!!redeemScript) {
-        const [redeem] = asElements(redeemScript);
-
-        utxo.redeem_script = redeem.toString('hex');
-
-        const [push] = asElements(redeemScript);
-
-        if (!!push) {
-          const [, hash] = asElements(bufferAsHex(push));
-
-          if (!!hash && !!witnesses[hash.toString('hex')]) {
-            const {witness} = witnesses[hash.toString('hex')];
-
-            utxo.witness_script = witness.toString('hex');
-          }
-        }
-      }
+    // Exit early when there is no spent output script, which can be empty
+    if (spent.script === undefined) {
+      return update;
     }
 
-    const nestedP2wpkh = (() => {
-      try {
-        const elements = asElements(spendOut.script);
+    const script = hexAsBuffer(spent.script);
 
-        const [opHash160, hash, opEqual] = elements;
+    // Scripts are matched only to the output that the input spends
+    const {redeem, witness} = paidScripts({
+      pushed,
+      redeems,
+      script,
+      witnesses,
+      known_redeem: scriptOf(records.redeem_script),
+      known_witness: scriptOf(records.witness_script),
+    });
 
-        const isP2shPush = isBuffer(hash) && hash.length === redeemHashLength;
+    update.redeem_script = redeem;
+    update.witness_script = witness;
 
-        if (opHash160 !== OP_HASH160 || opEqual !== OP_EQUAL && !isP2shPush) {
-          return false;
-        }
+    // Derivations are for keys that the input scripts check signatures with
+    const matching = matchingDerivations({
+      derivations,
+      scripts: [script, redeem, witness].filter(n => !!n),
+    });
 
-        return args.redeem_scripts.find(redeem => {
-          const [pushedScript] = asElements(redeem);
+    update.bip32_derivations = matching.derivations;
 
-          return hash160(pushedScript).equals(hash);
-        });
-      } catch (err) {
-        return false;
-      }
-    })();
-
-    const isP2wkh = (() => {
-      const decompiled = asElements(spendOut.script);
-
-      if (decompiled.length !== 2) {
-        return false;
-      }
-
-      const [version, push] = decompiled;
-
-      return push.length === publicKeyHashLength;
-    })();
-
-    if (hasWitness(spendsTx) || isP2wkh || !!nestedP2wpkh) {
-      // utxo.non_witness_utxo = spends.toString('hex');
-      utxo.witness_utxo = {
-        script_pub: spendOut.script,
-        tokens: spendOut.tokens,
-      };
-    } else {
-      utxo.non_witness_utxo = spends.toString('hex');
+    // Exit early when there is no supplied funding transaction to add
+    if (!supplied) {
+      return update;
     }
 
-    const legacyOutputBip32 = (out || {}).derivations || [];
-    const redeemScript = (out || outW || {}).redeem;
-    const witnessOutputBip32 = (outW || {}).derivations || [];
+    const isNested = !!redeem && isWitnessProgram({script: redeem});
 
-    const outBip32 = legacyOutputBip32.concat(witnessOutputBip32);
+    // The output is a witness output when its script or redeem script is one
+    const isWitness = isWitnessProgram({script}) || isNested;
 
-    utxo.bip32_derivations = outBip32.filter(n => !!n);
+    const {version} = witnessProgram({script: isNested ? redeem : script});
 
-    if (!!redeemScript) {
-      utxo.redeem_script = redeemScript.toString('hex');
+    if (isWitness) {
+      update.witness_utxo = {script_pub: spent.script, tokens: spent.tokens};
     }
 
-    if (isP2wkh) {
-      const [, hash] = asElements(spendOut.script);
-
-      const derivation = pubKeyHashes[hash.toString('hex')];
-
-      if (derivation) {
-        utxo.bip32_derivations = [derivation];
-      }
+    // Signers check the amount of a version 0 witness output by its funding
+    if (!isWitness || version === versionZero) {
+      update.non_witness_utxo = supplied.transaction;
     }
 
-    return inputs.push(utxo);
+    return update;
   });
 
   // Encode inputs into key value pairs
-  tx.inputs.forEach((txIn, vin) => {
-    const n = inputs[vin] || decoded.inputs[vin];
-
-    // Look for a taproot input
-    const taprootInput = (args.taproot_inputs || []).find(n => n.vin === vin);
+  const inputSections = updates.map((update, vin) => {
+    const taprootInput = taprootInputs.get(vin);
+    const values = [];
 
     // Legacy UTXO being spent by this input
-    if (!!n.non_witness_utxo) {
-      pairs.push({
-        type: Buffer.from(types.input.non_witness_utxo, 'hex'),
-        value: Buffer.from(n.non_witness_utxo, 'hex'),
+    if (!!update.non_witness_utxo) {
+      values.push({
+        type: hexAsBuffer(types.input.non_witness_utxo),
+        value: hexAsBuffer(update.non_witness_utxo),
       });
     }
 
     // Witness UTXO being spent by this input
-    if (!!n.witness_utxo) {
-      const script = Buffer.from(n.witness_utxo.script_pub, 'hex');
+    if (!!update.witness_utxo) {
+      const script = hexAsBuffer(update.witness_utxo.script_pub);
 
       const tokens = Buffer.alloc(tokensByteLength);
 
-      tokens.writeBigUInt64LE(BigInt(n.witness_utxo.tokens));
+      tokens.writeBigUInt64LE(BigInt(update.witness_utxo.tokens));
 
-      pairs.push({
-        type: Buffer.from(types.input.witness_utxo, 'hex'),
+      values.push({
+        type: hexAsBuffer(types.input.witness_utxo),
         value: Buffer.concat([tokens, encode(script.length), script]),
       });
     }
 
-    // Partial signature
-    if (!args.is_final && !!n.partial_sig) {
-      n.partial_sig.forEach(n => {
-        return pairs.push({
-          type: Buffer.concat([
-            Buffer.from(types.input.partial_sig, 'hex'),
-            Buffer.from(n.public_key, 'hex'),
-          ]),
-          value: Buffer.from(n.signature, 'hex'),
-        });
-      });
-    }
-
-    // Pay to Taproot partial signature for key spend
-    if (!args.is_final && !!taprootInput && taprootInput.key_spend_sig) {
-      pairs.push({
-        type: Buffer.from(types.input.tap_key_sig, 'hex'),
-        value: Buffer.from(taprootInput.key_spend_sig, 'hex'),
-      });
-    }
-
-    // Sighash used to sign this input
-    if (!args.is_final && !!n.sighash_type) {
-      const sighash = Buffer.alloc(sigHashByteLength);
-
-      sighash.writeUInt32LE(Number(n.sighash_type));
-
-      pairs.push({
-        type: Buffer.from(types.input.sighash_type, 'hex'),
-        value: sighash,
-      });
-    }
-
-    // Redeem script used in the scriptsig of this input
-    if (!args.is_final && !!n.redeem_script) {
-      pairs.push({
-        type: Buffer.from(types.input.redeem_script, 'hex'),
-        value: Buffer.from(n.redeem_script, 'hex'),
-      });
-    }
-
-    // Witness script used in this input
-    if (!args.is_final && !!n.witness_script) {
-      pairs.push({
-        type: Buffer.from(types.input.witness_script, 'hex'),
-        value: Buffer.from(n.witness_script, 'hex'),
-      });
-    }
-
-    // Bip 32 derivations for this input
-    if (!args.is_final && !!n.bip32_derivations) {
-      // Sort in-place the derivations by pubkey ascending
-      n.bip32_derivations.sort((a, b) => a.public_key < b.public_key ? -1 : 1);
-
-      n.bip32_derivations.forEach(n => {
-        pairs.push({
-          type: Buffer.concat([
-            Buffer.from(types.input.bip32_derivation, 'hex'),
-            Buffer.from(n.public_key, 'hex'),
-          ]),
-          value: Buffer.concat([
-            Buffer.from(n.fingerprint, 'hex'),
-            bip32Path({path: n.path}),
-          ]),
-        });
-      });
-    }
-
-    const hasPartialSig = !!n.partial_sig && !!n.partial_sig.length;
-    const hasTaprootSig = !!n.taproot_key_spend_sig;
-
-    // Make sure that there is a signature when the input is finalized
-    if (!!args.is_final && !hasPartialSig && !hasTaprootSig) {
-      throw new Error('ExpectedSignaturesForFinalizedTransaction');
-    }
-
-    // Final scriptwitness for taproot input
-    if (!!args.is_final && !!n.taproot_key_spend_sig) {
-      const components = [pushData({
-        data: Buffer.from(n.taproot_key_spend_sig, 'hex'),
-      })];
-
-      const value = Buffer.concat([
-        encode(components.length),
-        Buffer.concat(components),
-      ]);
-
-      pairs.push({
-        value,
-        type: Buffer.from(types.input.final_scriptwitness, 'hex'),
-      });
-    }
-
-    // Final scriptsig for this input
-    if (!!args.is_final && !!n.partial_sig && !!n.partial_sig.length) {
-      const isWitness = !!n.witness_script && !n.witness_utxo;
-      const redeem = n.redeem_script;
-      const [signature] = n.partial_sig;
-
-      const isP2shMultisig = !!redeem && isMultisig({script: redeem});
-
-      const sigs = n.partial_sig.map(n => {
-        const sig = encodeSignature({
-          flag: n.hash_type,
-          signature: n.signature,
-        });
-
-        return Buffer.concat([encode(sig.length), sig]);
-      });
-
-      // Pay to Public Key?
-      if (!n.redeem_script && !n.witness_script && !n.witness_utxo) {
-        n.partial_sig.forEach(partial => {
-          const pubKey = Buffer.from(partial.public_key, 'hex');
-
-          const sig = encodeSignature({
-            flag: partial.hash_type,
-            signature: partial.signature,
-          });
-
-          const sigPush = Buffer.concat([encode(sig.length), sig]);
-          const pubKeyPush = Buffer.concat([encode(pubKey.length), pubKey]);
-
-          pairs.push({
-            type: Buffer.from(types.input.final_scriptsig, 'hex'),
-            value: Buffer.concat([sigPush, pubKeyPush]),
-          });
-        });
-      }
-
-      // Pay to witness public key hash
-      if (!n.redeem_script && !n.witness_script && !!n.witness_utxo) {
-        n.partial_sig.forEach(partial => {
-          const sig = encodeSignature({
-            flag: partial.hash_type,
-            signature: partial.signature,
-          });
-
-          const components = []
-            .concat(pushData({data: sig}))
-            .concat(pushData({data: Buffer.from(partial.public_key, 'hex')}));
-
-          const value = Buffer.concat([
-            encode(components.length),
-            Buffer.concat(components),
-          ]);
-
-          pairs.push({
-            value,
-            type: Buffer.from(types.input.final_scriptwitness, 'hex'),
-          });
-        });
-      }
-
-      if (isNestedP2wpkhReedeemScript(n.redeem_script) && !!n.witness_utxo) {
-        n.partial_sig.forEach(partial => {
-          const sig = encodeSignature({
-            flag: partial.hash_type,
-            signature: partial.signature,
-          });
-
-          const components = []
-            .concat(pushData({data: sig}))
-            .concat(pushData({data: Buffer.from(partial.public_key, 'hex')}));
-
-          const value = Buffer.concat([
-            encode(components.length),
-            Buffer.concat(components),
-          ]);
-
-          const redeemScript = Buffer.from(n.redeem_script, 'hex');
-
-          pairs.push({
-            value: pushData({data: redeemScript}),
-            type: Buffer.from(types.input.final_scriptsig, 'hex'),
-          });
-
-          pairs.push({
-            value,
-            type: Buffer.from(types.input.final_scriptwitness, 'hex'),
-          });
-        });
-      }
-
-      // Non-witness Multi-sig?
-      if (isMultisig({script: n.redeem_script})) {
-        const nullDummy = Buffer.from([OP_0]);
-        const redeemScript = Buffer.from(n.redeem_script, 'hex');
-
-        const redeemScriptPush = pushData({data: redeemScript});
-        const [sigsRequired] = asElements(n.redeem_script);
-
-        const requiredSignatureCount = sigsRequired - opNumberOffset;
-
-        if (sigs.length !== requiredSignatureCount) {
-          throw new Error('ExpectedAdditionalSignatures');
-        }
-
-        const components = [nullDummy].concat(sigs).concat([redeemScriptPush]);
-
-        pairs.push({
-          type: Buffer.from(types.input.final_scriptsig, 'hex'),
-          value: Buffer.concat(components),
-        });
-      }
-
-      // Witness P2SH Nested?
-      if (!!n.redeem_script && !!n.witness_script) {
-        pairs.push({
-          type: Buffer.from(types.input.final_scriptsig, 'hex'),
-          value: pushData({encode: n.redeem_script}),
-        });
-      }
-
-      // Witness Multi-sig?
-      if (isMultisig({script: n.witness_script})) {
-        const nullDummy = Buffer.from([OP_0]);
-        const witnessScript = Buffer.from(n.witness_script, 'hex');
-
-        const [sigsRequired] = asElements(n.witness_script);
-        const witnessScriptPush = pushData({data: witnessScript});
-
-        const requiredSignatureCount = sigsRequired - opNumberOffset;
-
-        if (sigs.length !== requiredSignatureCount) {
-          throw new Error('ExpectedAdditionalSignatures');
-        }
-
-        const components = [nullDummy].concat(sigs).concat(witnessScriptPush);
-
-        const values = Buffer.concat(components);
-
-        pairs.push({
-          type: Buffer.from(types.input.final_scriptwitness, 'hex'),
-          value: Buffer.concat([encode(components.length), values]),
-        });
-      }
-
-      // Witness but non-multisig
-      if (!!n.witness_script && !isMultisig({script: n.witness_script})) {
-        const witnessScriptPush = pushData({encode: n.witness_script});
-
-        const components = [].concat(sigs).concat(witnessScriptPush);
-
-        const value = Buffer.concat([
-          encode(components.length),
-          Buffer.concat(components),
-        ]);
-
-        pairs.push({
-          value,
-          type: Buffer.from(types.input.final_scriptwitness, 'hex'),
-        });
-      } else if (!!redeem && !isWitness && !isP2shMultisig) {
-        const signatures = n.partial_sig.map(n => {
-          return encodeSignature({flag: n.hash_type, signature: n.signature});
-        });
-
-        const redeemScript = Buffer.from(n.redeem_script, 'hex');
-
-        const components = [].concat(signatures).concat(redeemScript);
-
-        if (!n.witness_utxo) {
-          pairs.push({
-            value: Buffer.concat(components.map(data => pushData({data}))),
-            type: Buffer.from(types.input.final_scriptsig, 'hex'),
-          });
-        }
-      }
-    }
-
-    addAttributes.filter(n => n.vin === vin).forEach(({type, value}) => {
-      return pairs.push({
-        type: Buffer.from(type, 'hex'),
-        value: Buffer.from(value, 'hex'),
+    // Partial signatures, each for the exact public key it was made with
+    update.partial_sig.forEach(n => {
+      return values.push({
+        type: key(types.input.partial_sig, hexAsBuffer(n.public_key)),
+        value: hexAsBuffer(n.signature),
       });
     });
+
+    // A new taproot key spend signature replaces an existing one
+    if (!!taprootInput && !!taprootInput.key_spend_sig) {
+      values.push({
+        type: hexAsBuffer(types.input.tap_key_sig),
+        value: hexAsBuffer(taprootInput.key_spend_sig),
+      });
+    }
+
+    // Sighash type supplied for this input
+    if (update.sighash_type !== undefined) {
+      values.push({
+        type: hexAsBuffer(types.input.sighash_type),
+        value: sighashAsBuffer({sighash: update.sighash_type}),
+      });
+    }
+
+    // Redeem script used in the scriptsig of this input, which can be empty
+    if (update.redeem_script !== undefined) {
+      values.push({
+        type: hexAsBuffer(types.input.redeem_script),
+        value: update.redeem_script,
+      });
+    }
+
+    // Witness script used in this input, which can be empty
+    if (update.witness_script !== undefined) {
+      values.push({
+        type: hexAsBuffer(types.input.witness_script),
+        value: update.witness_script,
+      });
+    }
+
+    // Bip 32 derivations for this input, in order of public key
+    (update.bip32_derivations || []).sort(byPublicKey).forEach(n => {
+      const path = bip32Path({path: n.path});
+
+      return values.push({
+        type: key(types.input.bip32_derivation, hexAsBuffer(n.public_key)),
+        value: Buffer.concat([hexAsBuffer(n.fingerprint), path]),
+      });
+    });
+
+    // The new values are set over the existing pairs of the input
+    const {section} = mergePairs({
+      order: types.order.input,
+      pairs: values,
+      section: inputPairs[vin],
+    });
+
+    // Additional attributes are set over all of the other input pairs
+    const {section: merged} = mergePairs({
+      order: types.order.input,
+      pairs: inputAttributes[vin],
+      section,
+    });
+
+    // Exit early when no signatures are added to set a sighash type with
+    if (!update.partial_sig.length) {
+      return merged;
+    }
+
+    // The sighash type is chosen once every change to the input is merged
+    const {sighash_type} = inputSighashType({pairs: merged});
+
+    // Exit early when the input has a sighash type or the signatures differ
+    if (sighash_type === undefined) {
+      return merged;
+    }
+
+    // The input gets the sighash type that all of its signatures share
+    const {section: signed} = mergePairs({
+      order: types.order.input,
+      pairs: [{
+        type: hexAsBuffer(types.input.sighash_type),
+        value: sighashAsBuffer({sighash: sighash_type}),
+      }],
+      section: merged,
+    });
+
+    return signed;
+  });
+
+  // Each input section follows the global section and ends with a separator
+  inputSections.forEach(section => {
+    section.forEach(n => pairs.push(n));
 
     return pairs.push({separator: true});
   });
 
   // Iterate through outputs to update output data
-  tx.outputs.forEach(({script}) => {
-    const out = {};
+  tx.outputs.forEach((output, vout) => {
+    const records = decoded.outputs[vout];
+    const script = hexAsBuffer(output.script);
+    const values = [];
 
-    const [foundKey] = asElements(script)
-      .filter(isBuffer)
-      .map(n => pubKeyHashes[n.toString('hex')])
-      .filter(n => !!n);
+    // Scripts are matched to the output script
+    const {redeem, witness} = paidScripts({
+      pushed,
+      redeems,
+      script,
+      witnesses,
+      known_redeem: scriptOf(records.redeem_script),
+      known_witness: scriptOf(records.witness_script),
+    });
 
-    if (!!foundKey) {
-      out.bip32_derivation = foundKey;
-    }
-
-    return outputs.push(!Object.keys(out).length ? null : out);
-  });
-
-  // Iterate through outputs to add pairs as appropriate
-  tx.outputs.forEach((out, vout) => {
-    const output = outputs[vout] || decoded.outputs[vout];
-
-    if (!!output.bip32_derivation) {
-      pairs.push({
-        type: Buffer.concat([
-          Buffer.from(types.output.bip32_derivation, 'hex'),
-          Buffer.from(output.bip32_derivation.public_key, 'hex'),
-        ]),
-        value: Buffer.concat([
-          Buffer.from(output.bip32_derivation.fingerprint, 'hex'),
-          bip32Path({path: output.bip32_derivation.path}),
-        ]),
+    // Redeem script that the output pays to, which can be empty
+    if (redeem !== undefined) {
+      values.push({
+        type: hexAsBuffer(types.output.redeem_script),
+        value: redeem,
       });
     }
 
-    addAttributes.filter(n => n.vout === vout).forEach(({type, value}) => {
-      return pairs.push({
-        type: Buffer.from(type, 'hex'),
-        value: Buffer.from(value, 'hex'),
+    // Witness script that the output pays to, which can be empty
+    if (witness !== undefined) {
+      values.push({
+        type: hexAsBuffer(types.output.witness_script),
+        value: witness,
+      });
+    }
+
+    // Derivations are for keys that the output scripts check signatures with
+    const {derivations: found} = matchingDerivations({
+      derivations,
+      scripts: [script, redeem, witness].filter(n => !!n),
+    });
+
+    found.sort(byPublicKey).forEach(n => {
+      const path = bip32Path({path: n.path});
+
+      return values.push({
+        type: key(types.output.bip32_derivation, hexAsBuffer(n.public_key)),
+        value: Buffer.concat([hexAsBuffer(n.fingerprint), path]),
       });
     });
+
+    const {section} = mergePairs({
+      order: types.order.output,
+      pairs: values,
+      section: outputPairs[vout],
+    });
+
+    // Additional attributes are set over all of the other output pairs
+    const {section: outputSection} = mergePairs({
+      order: types.order.output,
+      pairs: outputAttributes[vout],
+      section,
+    });
+
+    outputSection.forEach(n => pairs.push(n));
 
     return pairs.push({separator: true});
   });
 
-  return encodePsbt({pairs});
+  // The updated PSBT must be a valid PSBT
+  const {psbt} = encodePsbt({pairs});
+
+  // Signatures must use the sighash type of their input after every change
+  inputSections.forEach(section => checkInputSighashTypes({pairs: section}));
+
+  return {psbt};
 };

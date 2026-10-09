@@ -1,8 +1,11 @@
 {
   "global": {
     "magic": "psbt",
+    "proprietary": "fc",
     "separator": "ff",
-    "unsigned_tx": "00"
+    "unsigned_tx": "00",
+    "version": "fb",
+    "xpub": "01"
   },
   "input": {
     "bip32_derivation": "06",
@@ -10,6 +13,7 @@
     "final_scriptwitness": "08",
     "non_witness_utxo": "00",
     "partial_sig": "02",
+    "proprietary": "fc",
     "redeem_script": "04",
     "sighash_type": "03",
     "tap_bip32_derivation": "16",
@@ -21,12 +25,46 @@
     "witness_script": "05",
     "witness_utxo": "01"
   },
+  "must_match": {
+    "global": ["01", "fb"],
+    "input": [
+      "01", "03", "04", "05", "06", "0a", "0b", "0c", "0d", "15", "16", "17",
+      "18"
+    ],
+    "output": ["00", "01", "02", "05", "06", "07"]
+  },
+  "order": {
+    "global": ["00", "01", "fb"],
+    "input": [
+      "00", "01", "02", "03", "04", "05", "06", "0a", "0b", "0c", "0d",
+      "13", "14", "15", "16", "17", "18", "07", "08"
+    ],
+    "output": ["00", "01", "02", "05", "06", "07"]
+  },
   "output": {
     "bip32_derivation": "02",
+    "proprietary": "fc",
     "redeem_script": "00",
     "tap_bip32_derivation": "07",
     "tap_internal_key": "05",
     "tap_tree": "06",
     "witness_script": "01"
+  },
+  "preimages": {
+    "0a": ["ripemd160"],
+    "0b": ["sha256"],
+    "0c": ["sha256", "ripemd160"],
+    "0d": ["sha256", "sha256"]
+  },
+  "signing": [
+    "02", "03", "04", "05", "06", "0a", "0b", "0c", "0d",
+    "13", "14", "15", "16", "17", "18"
+  ],
+  "taproot_input": ["13", "14", "15", "16", "17", "18"],
+  "taproot_output": ["05", "06", "07"],
+  "version_2": {
+    "global": ["02", "03", "04", "05", "06", "07", "08"],
+    "input": ["0e", "0f", "10", "11", "12", "1d", "1e"],
+    "output": ["03", "04", "09", "0a"]
   }
 }

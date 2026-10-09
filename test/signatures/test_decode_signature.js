@@ -35,6 +35,24 @@ const tests = {
         'fb17a45',
     },
   },
+  a_signature_with_an_oversized_r_value_is_rejected: {
+    args: {
+      signature: hexAsBuffer('304502210111111111111111111111111111111111111' +
+        '111111111111111111111111111110220222222222222222222222222222222222' +
+        '222222222222222222222222222222201'),
+    },
+    err: 'UnexpectedOversizedNumberInSignature',
+    msg: 'A signature with an r value that does not fit is rejected',
+  },
+  a_signature_with_an_oversized_s_value_is_rejected: {
+    args: {
+      signature: hexAsBuffer('304502201111111111111111111111111111111111111' +
+        '111111111111111111111111111022101222222222222222222222222222222222' +
+        '222222222222222222222222222222201'),
+    },
+    err: 'UnexpectedOversizedNumberInSignature',
+    msg: 'A signature with an s value that does not fit is rejected',
+  },
   a_signature_that_is_not_a_buffer_is_rejected: {
     args: {signature: 'signature'},
     err: 'ExpectedSignatureBufferToDecode',

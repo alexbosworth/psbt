@@ -1,30 +1,42 @@
 {
-  "author": "Alex Bosworth",
+  "author": {
+    "name": "Alex Bosworth",
+    "url": "https://x.com/alexbosworth"
+  },
   "dependencies": {
-    "@alexbosworth/blockchain": "4.8.0",
+    "@alexbosworth/blockchain": "4.11.0",
     "bip66": "2.0.0",
     "bitcoin-ops": "1.4.1",
-    "pushdata-bitcoin": "1.0.1"
-  },
-  "description": "Methods for working with BIP 174 PSBTs",
-  "devDependencies": {
-    "ecpair": "2.1.0",
+    "pushdata-bitcoin": "1.0.1",
     "tiny-secp256k1": "2.2.4"
   },
+  "description": "Methods for working with BIP 174 PSBTs",
   "directories": {
     "test": "test"
   },
   "engines": {
     "node": ">=22"
   },
+  "files": [
+    "bip32",
+    "checks",
+    "index.js",
+    "psbts",
+    "script",
+    "sighash",
+    "signatures",
+    "spends",
+    "transactions",
+    "utxos"
+  ],
   "license": "MIT",
   "name": "psbt",
   "repository": {
     "type": "git",
-    "url": "https://github.com/alexbosworth/psbt.git"
+    "url": "git+https://github.com/alexbosworth/psbt.git"
   },
   "scripts": {
     "test": "node --experimental-test-coverage --test"
   },
-  "version": "6.0.4"
+  "version": "7.0.0"
 }

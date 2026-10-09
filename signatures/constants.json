@@ -1,5 +1,8 @@
 {
+  "curveOrder": "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141",
+  "defaultTapSigHashType": 0,
   "pointSize": 32,
+  "schnorrSignatureByteLength": 64,
   "sigByteLength": 64,
   "sigHashByteLength": 1
 }

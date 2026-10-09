@@ -1,3 +1,4 @@
+const hexAsBuffer = hex => Buffer.from(hex, 'hex');
 const zero = Buffer.from('00', 'hex');
 
 /** DER encode bytes to eliminate sign confusion in a big-endian number.
@@ -11,7 +12,7 @@ const zero = Buffer.from('00', 'hex');
 */
 module.exports = ({point}) => {
   let i = 0;
-  let x = Buffer.from(point, 'hex');
+  let x = hexAsBuffer(point);
 
   while (x[i] === 0) {
     ++i;

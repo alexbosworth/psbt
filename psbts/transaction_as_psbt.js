@@ -1,29 +1,23 @@
 const {componentsOfTransaction} = require('@alexbosworth/blockchain');
-const {idForTransaction} = require('@alexbosworth/blockchain');
-const {scriptAsScriptElements} = require('@alexbosworth/blockchain');
 
-const createPsbt = require('./create_psbt');
-const {isMultisig} = require('./../script');
-const {multisigDetails} = require('./../script');
+const encodeUnsignedPsbt = require('./encode_unsigned_psbt');
+const extractTransaction = require('./extract_transaction');
+const finalizePsbt = require('./finalize_psbt');
+const {signedSpend} = require('./../spends');
+const {transactionId} = require('./../transactions');
 const updatePsbt = require('./update_psbt');
-
-const asElements = script => scriptAsScriptElements({script}).elements;
-const bufferAsHex = buffer => buffer.toString('hex');
-const hexAsBuffer = hex => Buffer.from(hex, 'hex');
-const isBech32Version = version => version !== undefined && version <= 16;
-const {isBuffer} = Buffer;
-const payToWitnessKeyOutLength = 20;
-const reversedBuffer = buffer => Buffer.from(buffer).reverse();
-const transactionId = hex => idForTransaction({transaction: hex}).id;
-const txOuts = tx => componentsOfTransaction({transaction: tx}).outputs;
 
 /** Convert a signed transaction to a signed PSBT
 
-  Note: not all signed transactions can be converted to a signed PSBT. For
-  example, a preimage cannot be represented in a standard PSBT.
+  Inputs can spend P2PKH, P2WPKH, and nested P2WPKH outputs, and P2SH, P2WSH,
+  nested P2WSH, and bare outputs with a script that pays to a public key, to
+  a public key hash, or to a multisig where every key signs. Other spends are
+  rejected, as is a conversion that would not finalize to the same
+  transaction.
+
+  The PSBT keeps the exact locktime and input sequences of the transaction.
 
   {
-    ecp: <ECPair Object>
     spending: [<Spending Transaction Hex String>]
     transaction: <Hex Encoded Transaction String>
   }
@@ -36,140 +30,73 @@ const txOuts = tx => componentsOfTransaction({transaction: tx}).outputs;
     psbt: <Signed PSBT String>
   }
 */
-module.exports = ({ecp, spending, transaction}) => {
+module.exports = ({spending, transaction}) => {
+  const fundings = new Map();
   const redeemScripts = [];
   const signatures = [];
   const tx = componentsOfTransaction({transaction});
   const witnessScripts = [];
 
-  const {version} = tx;
+  // Index the spending transactions by id, parsing each one only once
+  spending.forEach(hex => {
+    const funding = componentsOfTransaction({transaction: hex});
 
-  const outputs = tx.outputs;
+    const {id} = transactionId(funding);
 
-  const utxos = tx.inputs.map(({id, sequence, vout}) => ({sequence, id, vout}));
-
-  const {psbt} = createPsbt({outputs, utxos, version, timelock: tx.locktime});
-
-  tx.inputs.forEach(({id, script, vout, witness = []}, vin) => {
-    const spends = spending.find(hex => transactionId(hex) === id);
-
-    const out = txOuts(spends)[vout].script;
-
-    const [version, push] = asElements(out);
-
-    // Output is a native segwit pay to witness public key hash
-    if (isBech32Version(version) && push.length === payToWitnessKeyOutLength) {
-      const [signature, publicKey] = witness;
-
-      const [hashType] = reversedBuffer(hexAsBuffer(signature));
-
-      return signatures.push({
-        vin,
-        signature,
-        hash_type: hashType,
-        public_key: publicKey,
-      });
-    }
-
-    const {multisig} = multisigDetails({script});
-
-    if (!!multisig) {
-      multisig.signatures.forEach(signature => {
-        return signatures.push({
-          vin,
-          hash_type: signature.hash_type,
-          public_key: signature.public_key,
-          signature: signature.signature,
-        });
-      });
-
-      return redeemScripts.push(multisig.redeem_script);
-    }
-
-    const [witnessScript] = witness.slice().reverse();
-
-    if (!!witness && !!script.length) {
-      redeemScripts.push(script);
-    }
-
-    if (!!witnessScript) {
-      witnessScripts.push(witnessScript);
-    }
-
-    // Native witness multisig
-    if (!!witnessScript && isMultisig({script: witnessScript})) {
-      const [, ...witnessMulti] = asElements(witnessScript).slice().reverse();
-
-      const [n, m] = witnessMulti.slice().reverse().filter(n => !isBuffer(n));
-
-      if (n !== m) {
-        throw new Error('WitnessThresholdMultisigNotSupported');
-      }
-
-      const publicKeys = witnessMulti.slice().reverse().filter(isBuffer);
-
-      const [, ...witnessElements] = witness.slice().reverse()
-
-      const witnessSignatures = witnessElements.filter(n => !!n.length);
-
-      return witnessSignatures.reverse().forEach((signature, i) => {
-        const [hashType] = reversedBuffer(hexAsBuffer(signature));
-
-        return signatures.push({
-          vin,
-          signature,
-          hash_type: hashType,
-          public_key: publicKeys[i],
-        });
-      });
-    }
-
-    // Pay to witness public key nested
-    if (!!witnessScript && !!script.length) {
-      const [redeem] = asElements(script).reverse();
-
-      const [ver, push] = asElements(bufferAsHex(redeem));
-
-      if (isBech32Version(ver) && push.length === payToWitnessKeyOutLength) {
-        const [signature, publicKey] = witness;
-
-        const [hashType] = reversedBuffer(hexAsBuffer(signature));
-
-        // There is no witness script for a p2wpkh, just signature, pubkey
-        witnessScripts.length = Number();
-
-        return signatures.push({
-          vin,
-          signature,
-          hash_type: hashType,
-          public_key: publicKey,
-        });
-      }
-    }
-
-    // The output script is a pay to public key hash
-    const [signature, publicKey] = asElements(script);
-
-    if (!signature || !publicKey) {
-      throw new Error('UnsupportedTransactionSpendType');
-    }
-
-    const [hashType] = reversedBuffer(signature);
-
-    return signatures.push({
-      vin,
-      hash_type: hashType,
-      public_key: bufferAsHex(publicKey),
-      signature: bufferAsHex(signature),
-    });
+    return fundings.set(id, funding.outputs);
   });
 
-  return updatePsbt({
-    ecp,
+  // The unsigned transaction keeps the exact sequences and lock time
+  const {psbt} = encodeUnsignedPsbt({
+    inputs: tx.inputs.map(({id, sequence, vout}) => ({id, sequence, vout})),
+    locktime: tx.locktime,
+    outputs: tx.outputs,
+    version: tx.version,
+  });
+
+  // Each input has its own scripts and signatures, found from its spent output
+  tx.inputs.forEach((input, vin) => {
+    const outputs = fundings.get(input.id);
+
+    if (!outputs || !outputs[input.vout]) {
+      throw new Error('ExpectedSpentOutputToConvertTransactionToPsbt');
+    }
+
+    const spend = signedSpend({
+      script: input.script,
+      spent: outputs[input.vout].script,
+      witness: input.witness || [],
+    });
+
+    if (spend.redeem_script !== undefined) {
+      redeemScripts.push(spend.redeem_script);
+    }
+
+    if (spend.witness_script !== undefined) {
+      witnessScripts.push(spend.witness_script);
+    }
+
+    spend.signatures.forEach(n => signatures.push({...n, vin}));
+
+    return;
+  });
+
+  const converted = updatePsbt({
     psbt,
     signatures,
-    transactions: spending,
     redeem_scripts: redeemScripts,
+    transactions: spending,
     witness_scripts: witnessScripts,
   });
+
+  // The PSBT must keep everything needed to finalize the same transaction
+  const finalized = finalizePsbt({psbt: converted.psbt});
+
+  const extracted = extractTransaction({psbt: finalized.psbt});
+
+  if (extracted.transaction !== transaction.toLowerCase()) {
+    throw new Error('ExpectedConvertedPsbtToFinalizeToSameTransaction');
+  }
+
+  return {psbt: converted.psbt};
 };

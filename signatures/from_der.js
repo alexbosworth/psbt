@@ -1,7 +1,7 @@
 const {pointSize} = require('./constants');
 
 const {alloc} = Buffer;
-const {max} = Math;
+const signPadding = 0x00;
 
 /** Get from DER
 
@@ -9,18 +9,24 @@ const {max} = Math;
     x: <Buffer Object>
   }
 
+  @throws
+  <UnexpectedOversizedNumberInSignature Error>
+
   @returns
   <Buffer Object>
 */
 module.exports = ({x}) => {
-  if (x[0] === 0x00) {
-    x = x.slice(1);
+  // A leading zero byte is sign padding, not part of the number
+  const number = x[0] === signPadding ? x.subarray(1) : x;
+
+  // A number that does not fit would lose bytes when it is converted
+  if (number.length > pointSize) {
+    throw new Error('UnexpectedOversizedNumberInSignature');
   }
 
-  const bstart = max(0, pointSize - x.length);
   const buffer = alloc(pointSize, 0);
 
-  x.copy(buffer, bstart);
+  number.copy(buffer, pointSize - number.length);
 
   return buffer;
 };

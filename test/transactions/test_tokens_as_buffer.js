@@ -1,7 +1,7 @@
 const {equal} = require('node:assert').strict;
 const test = require('node:test');
 
-const tokensAsBuffer = require('./../../psbts/tokens_as_buffer');
+const tokensAsBuffer = require('./../../transactions/tokens_as_buffer');
 
 // Test scenarios
 const tests = {
