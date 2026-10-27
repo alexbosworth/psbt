@@ -4,11 +4,11 @@
     "url": "https://x.com/alexbosworth"
   },
   "dependencies": {
-    "@alexbosworth/blockchain": "4.11.0",
+    "@alexbosworth/blockchain": "4.12.0",
     "bip66": "2.0.0",
     "bitcoin-ops": "1.4.1",
     "pushdata-bitcoin": "1.0.1",
-    "tiny-secp256k1": "2.2.4"
+    "tiny-secp256k1": "2.2.5"
   },
   "description": "Methods for working with BIP 174 PSBTs",
   "directories": {
@@ -38,5 +38,5 @@
   "scripts": {
     "test": "node --experimental-test-coverage --test"
   },
-  "version": "7.0.0"
+  "version": "7.0.1"
 }

@@ -1,6 +1,6 @@
 # Versions
 
-## 7.0.0
+## 7.0.1
 
 - Methods no longer take an `ecp` object
 - `signPsbt` and `finalizePsbt` handle P2PKH, P2PK, bare multisig, P2WPKH,
